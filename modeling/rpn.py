@@ -45,7 +45,7 @@ class RPN(nn.Module):
             if debug:
                 import matplotlib.pyplot as plt
                 plt.switch_backend('TKAgg')
-                from data import de_normalize
+                from data .transforms import de_normalize
                 import matplotlib.patches as patches
                 image = de_normalize(images[0], img_metas[0])
                 plt.imshow(image)

@@ -67,7 +67,7 @@ class BoxHead(nn.Module):
             with torch.no_grad():
                 proposals, labels, regression_targets = self.select_training_samples(proposals, targets)
 
-        box_features = ops.roi_align(features, proposals, (self.pool_size, self.pool_size), 1.0 / self.stride, sampling_ratio=2)
+        box_features = ops.roi_pool(features, proposals, (self.pool_size, self.pool_size), 1.0 / self.stride)
         box_features = box_features.view(box_features.size(0), -1)
         box_features = self.classifier(box_features)
         class_logits = self.cls_score(box_features)
