@@ -102,6 +102,28 @@ class normalize(object):
         return results
 
 
+class pad(object):
+    def __init__(self, size_divisor=0, pad_val=0):
+        self.size_divisor = size_divisor
+        self.pad_val = pad_val
+
+    def __call__(self, results):
+        img = results['img']
+        pad_shape = img.shape
+        if self.size_divisor > 0:
+            pad_shape = list(pad_shape)
+            pad_shape[0] = int(np.ceil(img.shape[0] / self.size_divisor)) * self.size_divisor
+            pad_shape[1] = int(np.ceil(img.shape[1] / self.size_divisor)) * self.size_divisor
+            pad_shape = tuple(pad_shape)
+            pad = np.full(pad_shape, self.pad_val, dtype=img.dtype)
+            pad[:img.shape[0], :img.shape[1], ...] = img
+        else:
+            pad = img
+        results['img'] = pad
+        results['pad_shape'] = pad_shape
+        return results
+
+
 def de_normalize(image, img_meta):
     assert 'img_norm' in img_meta
     image = image.detach().cpu().permute(1, 2, 0).numpy()
@@ -150,6 +172,7 @@ TRANSFORMS = {
     'resize': resize,
     'normalize': normalize,
     'collect': collect,
+    'pad': pad,
 }
 
 

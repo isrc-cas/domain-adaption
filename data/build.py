@@ -43,7 +43,16 @@ DATASETS = {
         'root': foggy_cityscapes_images_dir,
         'train': False,
     },
-
+    "coco_2017_train": {
+        "ann_file": "/data7/lufficc/coco/annotations/instances_train2017.json",
+        "root": "/data7/lufficc/coco/train2017",
+        'train': True,
+    },
+    "coco_2017_val": {
+        "ann_file": "/data7/lufficc/coco/annotations/instances_val2017.json",
+        "root": "/data7/lufficc/coco/val2017",
+        'train': False,
+    },
 }
 
 

@@ -62,9 +62,9 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10,
 
         if global_step % print_freq == 0:
             if writer:
-                for k, v in loss_dict.items():
+                for k, v in loss_dict_reduced.items():
                     writer.add_scalar('losses/{}'.format(k), v, global_step=global_step)
-                writer.add_scalar('losses/total_loss', losses, global_step=global_step)
+                writer.add_scalar('losses/total_loss', losses_reduced, global_step=global_step)
                 writer.add_scalar('lr', optimizer.param_groups[0]['lr'], global_step=global_step)
 
 
@@ -77,7 +77,7 @@ def main(args):
     train_loader = build_data_loaders(args.trains, is_train=True, distributed=args.distributed, batch_size=args.batch_size, num_workers=args.num_workers)
     test_loaders = build_data_loaders(args.tests, is_train=False, distributed=args.distributed, num_workers=args.num_workers)
 
-    model = build_detectors('VGG16', num_classes=9)
+    model = build_detectors('VGG16', num_classes=args.num_classes)
     model.to(device)
 
     model_without_ddp = model
@@ -152,6 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--epochs', default=25, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr-steps', default=[16, 22], nargs='+', type=int, help='decrease lr every step-size epochs')
+    parser.add_argument('--num-classes', default=9, type=int, help='Number of classes(plus background)')
     parser.add_argument('--trains', default=['cityscapes_train'], nargs='+', type=str, help='Train datasets')
     parser.add_argument('--tests', default=['cityscapes_val', 'foggy_cityscapes_val'], nargs='+', type=str, help='Test datasets')
     parser.add_argument('--eval-types', default=['coco'], nargs='+', type=str, help='Evaluation types, like coco, voc...')
