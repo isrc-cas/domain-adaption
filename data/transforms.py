@@ -26,7 +26,7 @@ class random_flip(object):
 
 
 class resize(object):
-    def __init__(self, min_size, max_size, keep_ratio=True):
+    def __init__(self, min_size, max_size=None, keep_ratio=True):
         if not isinstance(min_size, (list, tuple)):
             min_size = (min_size,)
         self.min_size = min_size

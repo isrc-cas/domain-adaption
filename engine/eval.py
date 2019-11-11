@@ -29,6 +29,7 @@ def evaluation(model, data_loaders, device, types=('coco',), output_dir='./evalu
     for data_loader in data_loaders:
         dataset = data_loader.dataset
         _output_dir = os.path.join(output_dir, dataset.dataset_name)
+        os.makedirs(_output_dir, exist_ok=True)
         result = do_evaluation(model, data_loader, device, types=types, output_dir=_output_dir, iteration=iteration, viz=viz)
         results[dataset.dataset_name] = result
     return results
@@ -81,6 +82,7 @@ def do_evaluation(model, data_loader, device, types=('coco',), output_dir='./eva
         boxes /= scale_factor
         boxes = boxes.tolist()
         labels = labels.tolist()
+        labels = [dataset.label2cat[label] for label in labels]
         scores = scores.tolist()
 
         results_dict.update({

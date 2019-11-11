@@ -22,7 +22,7 @@ def coco_evaluation(dataset, predictions, output_dir, iou_type='bbox', iteration
             [
                 {
                     "image_id": image_id,
-                    "category_id": dataset.label2cat[labels[k]],
+                    "category_id": labels[k],
                     "bbox": [box[0], box[1], box[2] - box[0], box[3] - box[1]],  # to xywh format
                     "score": scores[k],
                 }

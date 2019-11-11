@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import ConcatDataset, DataLoader
 
 from . import collate_fn
-from .cityscape import CityscapeDataset
+from .datasets import *
 
 cityscapes_images_dir = '/data7/lufficc/cityscapes/leftImg8bit'
 foggy_cityscapes_images_dir = '/data7/lufficc/cityscapes/leftImg8bit_foggy'
@@ -53,17 +53,82 @@ DATASETS = {
         "root": "/data7/lufficc/coco/val2017",
         'train': False,
     },
+
+    'voc_2007_trainval': {
+        'root': '/data7/lufficc/voc/VOCdevkit/VOC2007',
+        'split': 'trainval',
+        'train': True,
+    },
+
+    'voc_2012_trainval': {
+        'root': '/data7/lufficc/voc/VOCdevkit/VOC2012',
+        'split': 'trainval',
+        'train': True,
+    },
+
+    'voc_2007_test': {
+        'root': '/data7/lufficc/voc/VOCdevkit/VOC2007',
+        'split': 'test',
+        'train': False,
+    },
+
+    'voc_watercolor_train': {
+        'root': '/data7/lufficc/cross_domain_detection/watercolor',
+        'split': 'train',
+        'train': True,
+    },
+    'voc_watercolor_test': {
+        'root': '/data7/lufficc/cross_domain_detection/watercolor',
+        'split': 'test',
+        'train': False,
+    },
+
+    'voc_comic_train': {
+        'root': '/data7/lufficc/cross_domain_detection/comic',
+        'split': 'train',
+        'train': True,
+    },
+    'voc_comic_test': {
+        'root': '/data7/lufficc/cross_domain_detection/comic',
+        'split': 'test',
+        'train': False,
+    },
+    'voc_clipart_train': {
+        'root': '/data7/lufficc/cross_domain_detection/clipart',
+        'split': 'train',
+        'train': True,
+    },
+    'voc_clipart_test': {
+        'root': '/data7/lufficc/cross_domain_detection/clipart',
+        'split': 'test',
+        'train': False,
+    },
+    'voc_clipart_traintest': {
+        'root': '/data7/lufficc/cross_domain_detection/clipart',
+        'split': 'traintest',
+        'train': False,
+    },
 }
 
 
 def build_datasets(names, is_train=True):
+    assert len(names) > 0
     datasets = []
     for name in names:
-        cfg = DATASETS[name]
-        dataset = CityscapeDataset(**cfg)
+        cfg = DATASETS[name].copy()
+        cfg['dataset_name'] = name
+        if 'cityscapes' in name:
+            dataset = CityscapeDataset(**cfg)
+        elif 'coco' in name:
+            dataset = MSCOCODataset(**cfg)
+        elif 'voc' in name:
+            dataset = CustomVocDataset(**cfg)
+        else:
+            raise NotImplementedError
+        print('{:<24}: {}'.format(dataset.dataset_name, len(dataset)))
         datasets.append(dataset)
     if is_train:
-        return [ConcatDataset(datasets)]
+        return datasets if len(datasets) == 1 else [ConcatDataset(datasets)]
     return datasets
 
 

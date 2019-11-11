@@ -17,17 +17,22 @@ def voc_evaluation(dataset, predictions, output_dir, iteration=None, use_07_metr
     pred_scores_list = []
     gt_boxes_list = []
     gt_labels_list = []
-    gt_difficults = None
+    gt_difficults = []
     for image_id in predictions:
         boxes, scores, labels = predictions[image_id]
-        labels = [dataset.label2cat[label] for label in labels]
         pred_boxes_list.append(np.array(boxes))
         pred_labels_list.append(np.array(labels))
         pred_scores_list.append(np.array(scores))
 
-        img_info, gt_boxes, gt_labels = dataset.get_annotations_by_image_id(image_id)
+        gt = dataset.get_annotations_by_image_id(image_id)
+        img_info, gt_boxes, gt_labels = gt['img_info'], gt['boxes'], gt['labels']
         gt_boxes_list.append(gt_boxes)
         gt_labels_list.append(gt_labels)
+        if gt_difficults is not None:
+            if 'difficult' in gt:
+                gt_difficults.append(gt['difficult'])
+            else:
+                gt_difficults = None
 
     result = eval_detection_voc(pred_bboxes=pred_boxes_list,
                                 pred_labels=pred_labels_list,
