@@ -1,6 +1,6 @@
 MODEL:
   BACKBONE:
-    NAME: 'VGG16'
+    NAME: 'vgg16'
   ROI_BOX_HEAD:
     NUM_CLASSES: 9
     BOX_PREDICTOR: 'vgg16_predictor'

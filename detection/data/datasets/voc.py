@@ -23,10 +23,6 @@ train_transforms = [
     },
     normalizer,
     {
-        'name': 'pad',
-        'size_divisor': 16,
-    },
-    {
         'name': 'collect'
     }
 ]
@@ -38,16 +34,12 @@ test_transforms = [
     },
     normalizer,
     {
-        'name': 'pad',
-        'size_divisor': 16,
-    },
-    {
         'name': 'collect'
     }
 ]
 
 
 class CustomVocDataset(VOCDataset):
-    def __init__(self, train=True, **kwargs):
+    def __init__(self, train, **kwargs):
         transforms = train_transforms if train else test_transforms
         super().__init__(transforms=transforms, **kwargs)

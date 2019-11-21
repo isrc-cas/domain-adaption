@@ -11,103 +11,86 @@ DATASETS = {
     'cityscapes_train': {
         'ann_file': '/data7/lufficc/cityscapes/cityscapes_coco_train.json',
         'root': cityscapes_images_dir,
-        'train': True,
     },
 
     'cityscapes_val': {
         'ann_file': '/data7/lufficc/cityscapes/cityscapes_coco_val.json',
         'root': cityscapes_images_dir,
-        'train': False,
     },
 
     'cityscapes_test': {
         'ann_file': '/data7/lufficc/cityscapes/cityscapes_coco_test.json',
         'root': cityscapes_images_dir,
-        'train': False,
     },
 
     'foggy_cityscapes_train': {
         'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_train.json',
         'root': foggy_cityscapes_images_dir,
-        'train': True,
     },
 
     'foggy_cityscapes_val': {
         'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_val.json',
         'root': foggy_cityscapes_images_dir,
-        'train': False,
     },
 
     'foggy_cityscapes_test': {
         'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_test.json',
         'root': foggy_cityscapes_images_dir,
-        'train': False,
     },
     "coco_2017_train": {
         "ann_file": "/data7/lufficc/coco/annotations/instances_train2017.json",
         "root": "/data7/lufficc/coco/train2017",
-        'train': True,
     },
     "coco_2017_val": {
         "ann_file": "/data7/lufficc/coco/annotations/instances_val2017.json",
         "root": "/data7/lufficc/coco/val2017",
-        'train': False,
     },
 
     'voc_2007_trainval': {
         'root': '/data7/lufficc/voc/VOCdevkit/VOC2007',
         'split': 'trainval',
-        'train': True,
     },
 
     'voc_2012_trainval': {
         'root': '/data7/lufficc/voc/VOCdevkit/VOC2012',
         'split': 'trainval',
-        'train': True,
     },
 
     'voc_2007_test': {
         'root': '/data7/lufficc/voc/VOCdevkit/VOC2007',
         'split': 'test',
-        'train': False,
     },
 
     'voc_watercolor_train': {
         'root': '/data7/lufficc/cross_domain_detection/watercolor',
         'split': 'train',
-        'train': True,
     },
     'voc_watercolor_test': {
         'root': '/data7/lufficc/cross_domain_detection/watercolor',
         'split': 'test',
-        'train': False,
     },
 
     'voc_comic_train': {
         'root': '/data7/lufficc/cross_domain_detection/comic',
         'split': 'train',
-        'train': True,
     },
     'voc_comic_test': {
         'root': '/data7/lufficc/cross_domain_detection/comic',
         'split': 'test',
-        'train': False,
     },
     'voc_clipart_train': {
         'root': '/data7/lufficc/cross_domain_detection/clipart',
         'split': 'train',
-        'train': True,
     },
     'voc_clipart_test': {
         'root': '/data7/lufficc/cross_domain_detection/clipart',
         'split': 'test',
-        'train': False,
     },
     'voc_clipart_traintest': {
         'root': '/data7/lufficc/cross_domain_detection/clipart',
         'split': 'traintest',
-        'train': False,
     },
+
 }
 
 
@@ -117,6 +100,7 @@ def build_datasets(names, is_train=True):
     for name in names:
         cfg = DATASETS[name].copy()
         cfg['dataset_name'] = name
+        cfg['train'] = is_train
         if 'cityscapes' in name:
             dataset = CityscapeDataset(**cfg)
         elif 'coco' in name:

@@ -65,6 +65,6 @@ class MSCOCODataset(COCODataset):
                'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock',
                'vase', 'scissors', 'teddy_bear', 'hair_drier', 'toothbrush')
 
-    def __init__(self, train=True, **kwargs):
+    def __init__(self, train, **kwargs):
         transforms = train_transforms if train else test_transforms
         super().__init__(transforms=transforms, remove_empty=train, **kwargs)

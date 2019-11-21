@@ -6,7 +6,7 @@ from torchvision import ops
 
 from torchvision.ops import boxes as box_ops
 
-from .losses import smooth_l1_loss
+from detection.layers import smooth_l1_loss
 from .utils import BalancedPositiveNegativeSampler, Matcher, BoxCoder
 from .anchor_generator import AnchorGenerator
 
@@ -18,6 +18,7 @@ class RPN(nn.Module):
         anchor_stride = cfg.MODEL.RPN.ANCHOR_STRIDE
         anchor_scales = cfg.MODEL.RPN.ANCHOR_SIZES
         anchor_ratios = cfg.MODEL.RPN.ASPECT_RATIOS
+        num_channels = cfg.MODEL.RPN.NUM_CHANNELS
         num_anchors = len(anchor_scales) * len(anchor_ratios)
         nms_thresh = cfg.MODEL.RPN.NMS_THRESH
 
@@ -31,11 +32,12 @@ class RPN(nn.Module):
         }
         self.nms_thresh = nms_thresh
 
+        num_channels = in_channels if num_channels is None else num_channels
         self.conv = nn.Conv2d(
-            in_channels, in_channels, kernel_size=3, stride=1, padding=1
+            in_channels, num_channels, kernel_size=3, stride=1, padding=1
         )
-        self.cls_logits = nn.Conv2d(in_channels, num_anchors, kernel_size=1, stride=1)
-        self.bbox_pred = nn.Conv2d(in_channels, num_anchors * 4, kernel_size=1, stride=1)
+        self.cls_logits = nn.Conv2d(num_channels, num_anchors, kernel_size=1, stride=1)
+        self.bbox_pred = nn.Conv2d(num_channels, num_anchors * 4, kernel_size=1, stride=1)
         self.anchor_generator = AnchorGenerator(anchor_stride, (anchor_scales,), (anchor_ratios,))
         self.box_coder = BoxCoder(weights=(1.0, 1.0, 1.0, 1.0))
         self.matcher = Matcher(high_threshold=0.7, low_threshold=0.3, allow_low_quality_matches=True)

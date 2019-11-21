@@ -44,6 +44,6 @@ test_transforms = [
 class CityscapeDataset(COCODataset):
     CLASSES = ('__background__', 'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle',)
 
-    def __init__(self, train=True, **kwargs):
+    def __init__(self, train, **kwargs):
         transforms = train_transforms if train else test_transforms
         super().__init__(transforms=transforms, remove_empty=train, **kwargs)

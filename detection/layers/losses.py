@@ -3,7 +3,7 @@ import torch
 
 def smooth_l1_loss(input, target, beta=1. / 9, size_average=True):
     """
-    very similar to the smooth_l1_loss from pytorch, but with
+    very similar to the smooth_l1_loss from PyTorch, but with
     the extra beta parameter
     """
     n = torch.abs(input - target)

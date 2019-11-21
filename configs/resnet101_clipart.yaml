@@ -1,0 +1,19 @@
+MODEL:
+  BACKBONE:
+    NAME: 'resnet101'
+  ROI_BOX_HEAD:
+    NUM_CLASSES: 21
+    BOX_PREDICTOR: 'resnet101_predictor'
+DATASETS:
+  TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
+  TESTS: ['voc_clipart_traintest']
+SOLVER:
+  EPOCHS: 20
+  STEPS: (16, 18)
+  LR: 1e-5
+  WEIGHT_DECAY: 0.0001
+  BATCH_SIZE: 1
+TEST:
+  EVAL_TYPES: ['voc']
+
+WORK_DIR: './work_dir/clipart'

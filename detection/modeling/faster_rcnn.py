@@ -1,6 +1,5 @@
 import torch.nn as nn
-from torchvision import models
-
+from .backbone import build_backbone
 from .roi_heads import BoxHead
 from .rpn import RPN
 
@@ -8,11 +7,9 @@ from .rpn import RPN
 class FasterRCNN(nn.Module):
     def __init__(self, cfg):
         super(FasterRCNN, self).__init__()
-        vgg16 = models.vgg16(True)
-        features = vgg16.features[:-1]
-
-        in_channels = 512
-        self.backbone = features
+        backbone = build_backbone(cfg)
+        in_channels = backbone.out_channels
+        self.backbone = backbone
         self.rpn = RPN(cfg, in_channels)
         self.box_head = BoxHead(cfg, in_channels)
 

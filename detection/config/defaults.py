@@ -16,7 +16,7 @@ _C.DATASETS.TARGETS = ()
 # Backbone options
 # ---------------------------------------------------------------------------- #
 _C.MODEL.BACKBONE = CN()
-_C.MODEL.BACKBONE.NAME = "VGG16"
+_C.MODEL.BACKBONE.NAME = "vgg16"
 
 # -----------------------------------------------------------------------------
 # INPUT options
@@ -39,6 +39,7 @@ _C.MODEL.RPN = CN()
 _C.MODEL.RPN.ANCHOR_SIZES = (32, 64, 128, 256, 512)
 _C.MODEL.RPN.ASPECT_RATIOS = (0.5, 1, 2)
 _C.MODEL.RPN.ANCHOR_STRIDE = 16
+_C.MODEL.RPN.NUM_CHANNELS = 512
 _C.MODEL.RPN.BATCH_SIZE_PER_IMAGE = 256
 _C.MODEL.RPN.PRE_NMS_TOP_N_TRAIN = 12000
 _C.MODEL.RPN.PRE_NMS_TOP_N_TEST = 6000
@@ -61,7 +62,8 @@ _C.MODEL.ROI_HEADS.DETECTIONS_PER_IMG = 100
 _C.MODEL.ROI_BOX_HEAD = CN()
 _C.MODEL.ROI_BOX_HEAD.NUM_CLASSES = 9
 _C.MODEL.ROI_BOX_HEAD.POOL_SPATIAL_SCALE = 1.0 / 16
-_C.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = 7
+_C.MODEL.ROI_BOX_HEAD.POOL_RESOLUTION = 7
+_C.MODEL.ROI_BOX_HEAD.POOL_TYPE = "align"
 _C.MODEL.ROI_BOX_HEAD.BOX_PREDICTOR = 'vgg16_predictor'
 
 # ---------------------------------------------------------------------------- #

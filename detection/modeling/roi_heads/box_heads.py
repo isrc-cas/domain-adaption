@@ -1,9 +1,12 @@
+from functools import partial
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision import ops
+from torchvision import ops, models
 from torchvision.ops import boxes as box_ops
-from detection.modeling.losses import smooth_l1_loss
+
+from detection.layers import FrozenBatchNorm2d, smooth_l1_loss
 from detection.modeling.utils import BalancedPositiveNegativeSampler, BoxCoder, Matcher
 
 
@@ -11,7 +14,7 @@ class VGG16BoxPredictor(nn.Module):
     def __init__(self, cfg, in_channels):
         super().__init__()
         num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
-        pool_size = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
+        pool_size = cfg.MODEL.ROI_BOX_HEAD.POOL_RESOLUTION
 
         self.classifier = nn.Sequential(
             nn.Linear(in_channels * pool_size ** 2, 4096),
@@ -36,8 +39,34 @@ class VGG16BoxPredictor(nn.Module):
         return class_logits, box_regression
 
 
+class ResNetBoxPredictor(nn.Module):
+    def __init__(self, cfg, in_channels):
+        super().__init__()
+        num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
+
+        resnet = models.resnet.__dict__[cfg.MODEL.BACKBONE.NAME](pretrained=True, norm_layer=FrozenBatchNorm2d)
+        self.extractor = resnet.layer4
+        del resnet
+
+        in_channels = self.extractor[-1].conv3.out_channels
+        self.cls_score = nn.Linear(in_channels, num_classes)
+        self.bbox_pred = nn.Linear(in_channels, num_classes * 4)
+        nn.init.normal_(self.cls_score.weight, std=0.01)
+        nn.init.normal_(self.bbox_pred.weight, std=0.001)
+        for l in [self.cls_score, self.bbox_pred]:
+            nn.init.constant_(l.bias, 0)
+
+    def forward(self, box_features):
+        box_features = self.extractor(box_features)
+        box_features = torch.mean(box_features, dim=(2, 3))
+        class_logits = self.cls_score(box_features)
+        box_regression = self.bbox_pred(box_features)
+        return class_logits, box_regression
+
+
 BOX_PREDICTORS = {
     'vgg16_predictor': VGG16BoxPredictor,
+    'resnet101_predictor': ResNetBoxPredictor,
 }
 
 
@@ -74,15 +103,22 @@ class BoxHead(nn.Module):
         nms_thresh = cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST
         detections_per_img = cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMG
 
-        spatial_scale = cfg.MODEL.ROI_BOX_HEAD.POOL_SPATIAL_SCALE
-        pool_size = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
         box_predictor = cfg.MODEL.ROI_BOX_HEAD.BOX_PREDICTOR
+        spatial_scale = cfg.MODEL.ROI_BOX_HEAD.POOL_SPATIAL_SCALE
+        pool_size = cfg.MODEL.ROI_BOX_HEAD.POOL_RESOLUTION
+        pool_type = cfg.MODEL.ROI_BOX_HEAD.POOL_TYPE
 
         self.score_thresh = score_thresh
         self.nms_thresh = nms_thresh
         self.detections_per_img = detections_per_img
-        self.spatial_scale = spatial_scale
-        self.pool_size = pool_size
+
+        if pool_type == 'align':
+            pooler = partial(ops.roi_align, output_size=(pool_size, pool_size), spatial_scale=spatial_scale, sampling_ratio=2)
+        elif pool_type == 'pooling':
+            pooler = partial(ops.roi_pool, output_size=(pool_size, pool_size), spatial_scale=spatial_scale)
+        else:
+            raise ValueError('Unknown pool type {}'.format(pool_type))
+        self.pooler = pooler
 
         self.box_predictor = BOX_PREDICTORS[box_predictor](cfg, in_channels)
         self.box_coder = BoxCoder(weights=(10., 10., 5., 5.))
@@ -94,7 +130,7 @@ class BoxHead(nn.Module):
             with torch.no_grad():
                 proposals, labels, regression_targets = self.select_training_samples(proposals, targets)
 
-        box_features = ops.roi_pool(features, proposals, (self.pool_size, self.pool_size), self.spatial_scale)
+        box_features = self.pooler(features, proposals)
 
         class_logits, box_regression = self.box_predictor(box_features)
 
