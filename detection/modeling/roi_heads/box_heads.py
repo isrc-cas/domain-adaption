@@ -2,11 +2,43 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import ops
-from torchvision.ops import boxes as box_op
 from torchvision.ops import boxes as box_ops
-from .loss import smooth_l1_loss
-from .utils import BalancedPositiveNegativeSampler, BoxCoder
-from .rpn import Matcher
+from detection.modeling.losses import smooth_l1_loss
+from detection.modeling.utils import BalancedPositiveNegativeSampler, BoxCoder, Matcher
+
+
+class VGG16BoxPredictor(nn.Module):
+    def __init__(self, cfg, in_channels):
+        super().__init__()
+        num_classes = cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES
+        pool_size = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
+
+        self.classifier = nn.Sequential(
+            nn.Linear(in_channels * pool_size ** 2, 4096),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(True),
+        )
+
+        self.cls_score = nn.Linear(4096, num_classes)
+        self.bbox_pred = nn.Linear(4096, num_classes * 4)
+        nn.init.normal_(self.cls_score.weight, std=0.01)
+        nn.init.normal_(self.bbox_pred.weight, std=0.001)
+        for l in [self.cls_score, self.bbox_pred]:
+            nn.init.constant_(l.bias, 0)
+
+    def forward(self, box_features):
+        box_features = box_features.view(box_features.size(0), -1)
+        box_features = self.classifier(box_features)
+        class_logits = self.cls_score(box_features)
+        box_regression = self.bbox_pred(box_features)
+        return class_logits, box_regression
+
+
+BOX_PREDICTORS = {
+    'vgg16_predictor': VGG16BoxPredictor,
+}
 
 
 def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
@@ -35,43 +67,36 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
 
 
 class BoxHead(nn.Module):
-    def __init__(self, in_channels, num_classes):
+    def __init__(self, cfg, in_channels):
         super().__init__()
-        self.pool_size = 7
-        self.num_classes = num_classes
-        self.detections_per_img = 100
-        self.stride = 16
+        batch_size = cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE
+        score_thresh = cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST
+        nms_thresh = cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST
+        detections_per_img = cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMG
+
+        spatial_scale = cfg.MODEL.ROI_BOX_HEAD.POOL_SPATIAL_SCALE
+        pool_size = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
+        box_predictor = cfg.MODEL.ROI_BOX_HEAD.BOX_PREDICTOR
+
+        self.score_thresh = score_thresh
+        self.nms_thresh = nms_thresh
+        self.detections_per_img = detections_per_img
+        self.spatial_scale = spatial_scale
+        self.pool_size = pool_size
+
+        self.box_predictor = BOX_PREDICTORS[box_predictor](cfg, in_channels)
         self.box_coder = BoxCoder(weights=(10., 10., 5., 5.))
         self.matcher = Matcher(0.5, 0.5, allow_low_quality_matches=False)
-        self.fg_bg_sampler = BalancedPositiveNegativeSampler(512, 0.25)
-        self.score_thresh = 0.05
-        self.nms_thresh = 0.5
-
-        self.classifier = nn.Sequential(
-            nn.Linear(in_channels * self.pool_size ** 2, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-        )
-
-        self.cls_score = nn.Linear(4096, num_classes)
-        self.bbox_pred = nn.Linear(4096, num_classes * 4)
-        nn.init.normal_(self.cls_score.weight, std=0.01)
-        nn.init.normal_(self.bbox_pred.weight, std=0.001)
-        for l in [self.cls_score, self.bbox_pred]:
-            nn.init.constant_(l.bias, 0)
+        self.fg_bg_sampler = BalancedPositiveNegativeSampler(batch_size, 0.25)
 
     def forward(self, images, features, proposals, img_metas, targets=None):
         if self.training:
             with torch.no_grad():
                 proposals, labels, regression_targets = self.select_training_samples(proposals, targets)
 
-        box_features = ops.roi_pool(features, proposals, (self.pool_size, self.pool_size), 1.0 / self.stride)
-        box_features = box_features.view(box_features.size(0), -1)
-        box_features = self.classifier(box_features)
-        class_logits = self.cls_score(box_features)
-        box_regression = self.bbox_pred(box_features)
+        box_features = ops.roi_pool(features, proposals, (self.pool_size, self.pool_size), self.spatial_scale)
+
+        class_logits, box_regression = self.box_predictor(box_features)
 
         if self.training:
             classification_loss, box_loss = fastrcnn_loss(class_logits, box_regression, labels, regression_targets)
@@ -109,7 +134,7 @@ class BoxHead(nn.Module):
         results = []
         for scores, boxes, img_meta in zip(pred_scores, pred_boxes, img_metas):
             width, height = img_meta['img_shape']
-            boxes = box_op.clip_boxes_to_image(boxes, (height, width))
+            boxes = box_ops.clip_boxes_to_image(boxes, (height, width))
 
             # create labels for each prediction
             labels = torch.arange(num_classes, device=device)
@@ -150,7 +175,7 @@ class BoxHead(nn.Module):
             target = targets[batch_id]
             proposals_per_image = proposals[batch_id]
 
-            match_quality_matrix = box_op.box_iou(target['boxes'], proposals_per_image)
+            match_quality_matrix = box_ops.box_iou(target['boxes'], proposals_per_image)
             matched_idxs = self.matcher(match_quality_matrix)
 
             matched_idxs_for_target = matched_idxs.clamp(0)

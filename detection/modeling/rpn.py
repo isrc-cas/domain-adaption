@@ -6,25 +6,37 @@ from torchvision import ops
 
 from torchvision.ops import boxes as box_ops
 
-from .loss import smooth_l1_loss
+from .losses import smooth_l1_loss
 from .utils import BalancedPositiveNegativeSampler, Matcher, BoxCoder
-from .anchor import AnchorGenerator
+from .anchor_generator import AnchorGenerator
 
 
 class RPN(nn.Module):
-    def __init__(self, in_channels, batch_size=256):
+    def __init__(self, cfg, in_channels):
         super().__init__()
-        self.anchor_stride = 16
-        anchor_scales = [32, 64, 128, 256, 512]
-        anchor_ratios = [0.5, 1, 2]
+        batch_size = cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE
+        anchor_stride = cfg.MODEL.RPN.ANCHOR_STRIDE
+        anchor_scales = cfg.MODEL.RPN.ANCHOR_SIZES
+        anchor_ratios = cfg.MODEL.RPN.ASPECT_RATIOS
         num_anchors = len(anchor_scales) * len(anchor_ratios)
+        nms_thresh = cfg.MODEL.RPN.NMS_THRESH
+
+        self.pre_nms_top_n = {
+            True: cfg.MODEL.RPN.PRE_NMS_TOP_N_TRAIN,
+            False: cfg.MODEL.RPN.PRE_NMS_TOP_N_TEST,
+        }
+        self.post_nms_top_n = {
+            True: cfg.MODEL.RPN.POST_NMS_TOP_N_TRAIN,
+            False: cfg.MODEL.RPN.POST_NMS_TOP_N_TEST,
+        }
+        self.nms_thresh = nms_thresh
 
         self.conv = nn.Conv2d(
             in_channels, in_channels, kernel_size=3, stride=1, padding=1
         )
         self.cls_logits = nn.Conv2d(in_channels, num_anchors, kernel_size=1, stride=1)
         self.bbox_pred = nn.Conv2d(in_channels, num_anchors * 4, kernel_size=1, stride=1)
-        self.anchor_generator = AnchorGenerator(self.anchor_stride, (anchor_scales,), (anchor_ratios,))
+        self.anchor_generator = AnchorGenerator(anchor_stride, (anchor_scales,), (anchor_ratios,))
         self.box_coder = BoxCoder(weights=(1.0, 1.0, 1.0, 1.0))
         self.matcher = Matcher(high_threshold=0.7, low_threshold=0.3, allow_low_quality_matches=True)
         self.sampler = BalancedPositiveNegativeSampler(batch_size, 0.5)
@@ -41,26 +53,6 @@ class RPN(nn.Module):
         with torch.no_grad():
             proposals = self.generate_proposals(anchors, logits, bbox_reg, img_metas)
 
-            debug = False
-            if debug:
-                import matplotlib.pyplot as plt
-                plt.switch_backend('TKAgg')
-                from data .transforms import de_normalize
-                import matplotlib.patches as patches
-                image = de_normalize(images[0], img_metas[0])
-                plt.imshow(image)
-
-                anchor = anchors[0]
-                print(anchor[:, 0].min().item(), anchor[:, 0].max().item())
-                print(anchor[:, 1].min().item(), anchor[:, 1].max().item())
-                print(anchor[:, 2].min().item(), anchor[:, 2].max().item())
-                print(anchor[:, 3].min().item(), anchor[:, 3].max().item())
-                print('ws: ', (anchor[:, 2] - anchor[:, 0]).min().item(), (anchor[:, 2] - anchor[:, 0]).max().item())
-                print('hs: ', (anchor[:, 3] - anchor[:, 1]).min().item(), (anchor[:, 3] - anchor[:, 1]).max().item())
-                for i, (x1, y1, x2, y2) in enumerate(proposals[0]):
-                    rect = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, facecolor='none', edgecolor='r')
-                    plt.gca().add_patch(rect)
-                plt.show()
         if self.training:
             objectness_loss, box_loss = self.losses(anchors, logits, bbox_reg, img_metas, targets)
             loss = {
@@ -81,9 +73,9 @@ class RPN(nn.Module):
             img_metas:
         Returns:
         """
-        pre_nms_top_n = 12000 if self.training else 6000
-        post_nms_top_n = 2000 if self.training else 1000
-        nms_thresh = 0.7
+        pre_nms_top_n = self.pre_nms_top_n[self.training]
+        post_nms_top_n = self.post_nms_top_n[self.training]
+        nms_thresh = self.nms_thresh
 
         device = objectness.device
         N, A, H, W = objectness.shape

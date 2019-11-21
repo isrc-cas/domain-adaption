@@ -1,0 +1,19 @@
+MODEL:
+  BACKBONE:
+    NAME: 'VGG16'
+  ROI_BOX_HEAD:
+    NUM_CLASSES: 9
+    BOX_PREDICTOR: 'vgg16_predictor'
+DATASETS:
+  TRAINS: ['cityscapes_train']
+  TESTS: ['cityscapes_val', 'foggy_cityscapes_val']
+SOLVER:
+  EPOCHS: 25
+  STEPS: (16, 22)
+  LR: 1e-5
+  WEIGHT_DECAY: 0.0001
+  BATCH_SIZE: 1
+TEST:
+  EVAL_TYPES: ['coco']
+
+WORK_DIR: './work_dir/cityscapes'

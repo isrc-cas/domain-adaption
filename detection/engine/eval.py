@@ -4,11 +4,10 @@ import time
 import torch
 import torch.distributed as dist
 
-import utils
-from data.coco_eval import coco_evaluation
-from data.transforms import de_normalize
-from data.voc_eval import voc_evaluation
-from utils.dist import is_main_process, all_gather, get_world_size
+from detection import utils
+from detection.data.evaluations import coco_evaluation, voc_evaluation
+from detection.data.transforms import de_normalize
+from detection.utils.dist_utils import is_main_process, all_gather, get_world_size
 
 
 def _accumulate_predictions_from_multiple_gpus(predictions_per_gpu):
@@ -28,7 +27,7 @@ def evaluation(model, data_loaders, device, types=('coco',), output_dir='./evalu
     results = dict()
     for data_loader in data_loaders:
         dataset = data_loader.dataset
-        _output_dir = os.path.join(output_dir, dataset.dataset_name)
+        _output_dir = os.path.join(output_dir, 'evaluations', dataset.dataset_name)
         os.makedirs(_output_dir, exist_ok=True)
         result = do_evaluation(model, data_loader, device, types=types, output_dir=_output_dir, iteration=iteration, viz=viz)
         results[dataset.dataset_name] = result
@@ -36,7 +35,7 @@ def evaluation(model, data_loaders, device, types=('coco',), output_dir='./evalu
 
 
 @torch.no_grad()
-def do_evaluation(model, data_loader, device, types=('coco',), output_dir='./evaluations/', iteration=None, viz=False):
+def do_evaluation(model, data_loader, device, types, output_dir, iteration=None, viz=False):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     dataset = data_loader.dataset

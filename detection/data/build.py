@@ -125,7 +125,6 @@ def build_datasets(names, is_train=True):
             dataset = CustomVocDataset(**cfg)
         else:
             raise NotImplementedError
-        print('{:<24}: {}'.format(dataset.dataset_name, len(dataset)))
         datasets.append(dataset)
     if is_train:
         return datasets if len(datasets) == 1 else [ConcatDataset(datasets)]
