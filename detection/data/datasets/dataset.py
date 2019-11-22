@@ -125,10 +125,11 @@ class VOCDataset(ABSDataset):
                'motorbike', 'person', 'pottedplant',
                'sheep', 'sofa', 'train', 'tvmonitor')
 
-    def __init__(self, root, split='train', base_dir='.', transforms=(), keep_difficult=False, dataset_name=''):
+    def __init__(self, root, split='train', base_dir='.', transforms=(), keep_difficult=False, img_ext='.jpg', dataset_name=''):
         self.root = root
         self.split = split
         self.keep_difficult = keep_difficult
+        self.img_ext = img_ext
 
         voc_root = os.path.join(self.root, base_dir)
         images_dir = os.path.join(voc_root, 'JPEGImages')
@@ -153,7 +154,7 @@ class VOCDataset(ABSDataset):
             'width': target['size']['width'],
             'height': target['size']['height'],
             'id': img_id,
-            'file_name': img_id + '.jpg',
+            'file_name': img_id + self.img_ext,
         }
 
         boxes = []
@@ -163,9 +164,11 @@ class VOCDataset(ABSDataset):
             is_difficult = bool(int(obj['difficult']))
             if is_difficult and not self.keep_difficult:
                 continue
-            difficult.append(is_difficult)
             label_name = obj['name']
-            label_id = VOCDataset.CLASSES.index(label_name)
+            if label_name not in self.CLASSES:
+                continue
+            difficult.append(is_difficult)
+            label_id = self.CLASSES.index(label_name)
             box = obj['bndbox']
             box = list(map(float, [box['xmin'], box['ymin'], box['xmax'], box['ymax']]))
             boxes.append(box)

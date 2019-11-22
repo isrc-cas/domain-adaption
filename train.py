@@ -132,7 +132,7 @@ def main(cfg, args):
         if dist_utils.is_main_process() and losses_writer:
             for dataset_name, metric in metrics.items():
                 for k, v in metric.items():
-                    metrics_writers[dataset_name].add_scalar('metrics/' + k, v, global_step=epoch)
+                    metrics_writers[dataset_name].add_scalar('metrics/' + k, v, global_step=global_step)
 
         epoch_cost = time.time() - epoch_start
         left = epochs - epoch - 1

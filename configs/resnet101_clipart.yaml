@@ -1,6 +1,11 @@
 MODEL:
   BACKBONE:
     NAME: 'resnet101'
+  RPN:
+    POST_NMS_TOP_N_TEST: 300
+  ROI_HEADS:
+    SCORE_THRESH_TEST: 0.0
+    BATCH_SIZE_PER_IMAGE: 128
   ROI_BOX_HEAD:
     NUM_CLASSES: 21
     BOX_PREDICTOR: 'resnet101_predictor'
@@ -8,8 +13,8 @@ DATASETS:
   TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
   TESTS: ['voc_clipart_traintest']
 SOLVER:
-  EPOCHS: 20
-  STEPS: (16, 18)
+  EPOCHS: 10
+  STEPS: (8, 9)
   LR: 1e-5
   WEIGHT_DECAY: 0.0001
   BATCH_SIZE: 1

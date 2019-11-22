@@ -42,4 +42,20 @@ test_transforms = [
 class CustomVocDataset(VOCDataset):
     def __init__(self, train, **kwargs):
         transforms = train_transforms if train else test_transforms
-        super().__init__(transforms=transforms, **kwargs)
+        super().__init__(transforms=transforms, keep_difficult=not train, **kwargs)
+
+
+class WatercolorDataset(VOCDataset):
+    CLASSES = ('__background__', 'bicycle', 'bird', 'car', 'cat', 'dog', 'person')
+
+    def __init__(self, train, **kwargs):
+        transforms = train_transforms if train else test_transforms
+        super().__init__(transforms=transforms, keep_difficult=not train, **kwargs)
+
+
+class Sim10kDataset(VOCDataset):
+    CLASSES = ('__background__', 'car')
+
+    def __init__(self, train, **kwargs):
+        transforms = train_transforms if train else test_transforms
+        super().__init__(transforms=transforms, keep_difficult=not train, **kwargs)
