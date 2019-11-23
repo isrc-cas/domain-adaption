@@ -109,11 +109,6 @@ DATASETS = {
         'root': cityscapes_images_dir,
     },
 
-    'cityscapes_car_test': {
-        'ann_file': '/data7/lufficc/cityscapes/cityscapes_coco_test.json',
-        'root': cityscapes_images_dir,
-    },
-
     'foggy_cityscapes_car_train': {
         'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_train.json',
         'root': foggy_cityscapes_images_dir,
@@ -124,9 +119,10 @@ DATASETS = {
         'root': foggy_cityscapes_images_dir,
     },
 
-    'foggy_cityscapes_car_test': {
-        'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_test.json',
-        'root': foggy_cityscapes_images_dir,
+    # -----------kitti----------
+    'kitti_train': {
+        'root': '/data7/lufficc/cross_domain_detection/kitti/VOC2012/',
+        'split': 'train',
     },
 }
 
@@ -145,6 +141,8 @@ def build_datasets(names, transforms, is_train=True):
             dataset = CityscapeCarDataset(**cfg)
         elif 'sim10k' in name:
             dataset = Sim10kDataset(**cfg)
+        elif 'kitti' in name:
+            dataset = KITTIDataset(**cfg)
         elif 'cityscapes' in name:
             dataset = CityscapeDataset(**cfg)
         elif 'coco' in name:

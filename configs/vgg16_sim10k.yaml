@@ -17,7 +17,7 @@ INPUT:
   TRANSFORMS_TRAIN:
     - name: 'random_flip'
     - name: 'resize'
-      min_size: [600]
+      min_size: 600
     - name: 'normalize'
       mean: [0.5, 0.5, 0.5]
       std: [0.5, 0.5, 0.5]
@@ -25,7 +25,7 @@ INPUT:
     - name: 'collect'
   TRANSFORMS_TEST:
     - name: 'resize'
-      min_size: [600]
+      min_size: 600
     - name: 'normalize'
       mean: [0.5, 0.5, 0.5]
       std: [0.5, 0.5, 0.5]

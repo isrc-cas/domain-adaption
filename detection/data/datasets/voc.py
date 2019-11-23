@@ -24,3 +24,16 @@ class Sim10kDataset(VOCDataset):
             if ann['boxes'].shape[0] > 0:
                 img_ids.append(img_id)
         self.ids = img_ids
+
+
+class KITTIDataset(VOCDataset):
+    CLASSES = ('__background__', 'car')
+
+    def __init__(self, train, **kwargs):
+        super().__init__(keep_difficult=not train, img_ext='.png', **kwargs)
+        img_ids = []
+        for img_id in self.ids:
+            ann = self.get_annotations_by_image_id(img_id)
+            if ann['boxes'].shape[0] > 0:
+                img_ids.append(img_id)
+        self.ids = img_ids

@@ -125,7 +125,7 @@ class VOCDataset(ABSDataset):
                'motorbike', 'person', 'pottedplant',
                'sheep', 'sofa', 'train', 'tvmonitor')
 
-    def __init__(self, root, split='train', base_dir='.', transforms=(), keep_difficult=False, img_ext='.jpg', dataset_name=''):
+    def __init__(self, root, split='train', base_dir='.', transforms=(), keep_difficult=True, img_ext='.jpg', dataset_name=''):
         self.root = root
         self.split = split
         self.keep_difficult = keep_difficult
