@@ -61,23 +61,26 @@ DATASETS = {
         'split': 'test',
     },
 
-    'voc_watercolor_train': {
+    # -----------watercolor----------
+    'watercolor_pascal_2012_trainval': {
+        'root': '/data7/lufficc/voc/VOCdevkit/VOC2012',
+        'split': 'trainval',
+    },
+
+    'watercolor_pascal_2007_test': {
+        'root': '/data7/lufficc/voc/VOCdevkit/VOC2007',
+        'split': 'test',
+    },
+    'watercolor_train': {
         'root': '/data7/lufficc/cross_domain_detection/watercolor',
         'split': 'train',
     },
-    'voc_watercolor_test': {
+    'watercolor_test': {
         'root': '/data7/lufficc/cross_domain_detection/watercolor',
         'split': 'test',
     },
 
-    'voc_comic_train': {
-        'root': '/data7/lufficc/cross_domain_detection/comic',
-        'split': 'train',
-    },
-    'voc_comic_test': {
-        'root': '/data7/lufficc/cross_domain_detection/comic',
-        'split': 'test',
-    },
+    # -----------clipart----------
     'voc_clipart_train': {
         'root': '/data7/lufficc/cross_domain_detection/clipart',
         'split': 'train',
@@ -91,17 +94,58 @@ DATASETS = {
         'split': 'traintest',
     },
 
+    # -----------sim10k----------
+    'sim10k': {
+        'root': '/data7/lufficc/cross_domain_detection/sim10k/repro_10k_images/',
+        'split': 'all',
+    },
+    'cityscapes_car_train': {
+        'ann_file': '/data7/lufficc/cityscapes/cityscapes_coco_train.json',
+        'root': cityscapes_images_dir,
+    },
+
+    'cityscapes_car_val': {
+        'ann_file': '/data7/lufficc/cityscapes/cityscapes_coco_val.json',
+        'root': cityscapes_images_dir,
+    },
+
+    'cityscapes_car_test': {
+        'ann_file': '/data7/lufficc/cityscapes/cityscapes_coco_test.json',
+        'root': cityscapes_images_dir,
+    },
+
+    'foggy_cityscapes_car_train': {
+        'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_train.json',
+        'root': foggy_cityscapes_images_dir,
+    },
+
+    'foggy_cityscapes_car_val': {
+        'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_val.json',
+        'root': foggy_cityscapes_images_dir,
+    },
+
+    'foggy_cityscapes_car_test': {
+        'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_test.json',
+        'root': foggy_cityscapes_images_dir,
+    },
 }
 
 
-def build_datasets(names, is_train=True):
+def build_datasets(names, transforms, is_train=True):
     assert len(names) > 0
     datasets = []
     for name in names:
         cfg = DATASETS[name].copy()
         cfg['dataset_name'] = name
         cfg['train'] = is_train
-        if 'cityscapes' in name:
+        cfg['transforms'] = transforms
+        if 'watercolor' in name:
+            dataset = WatercolorDataset(**cfg)
+        elif 'cityscapes_car' in name:
+            dataset = CityscapeCarDataset(**cfg)
+        elif 'sim10k' in name:
+            dataset = Sim10kDataset(**cfg)
+        elif 'cityscapes' in name:
             dataset = CityscapeDataset(**cfg)
         elif 'coco' in name:
             dataset = MSCOCODataset(**cfg)
@@ -115,8 +159,8 @@ def build_datasets(names, is_train=True):
     return datasets
 
 
-def build_data_loaders(names, is_train=True, distributed=False, batch_size=1, num_workers=8):
-    datasets = build_datasets(names, is_train)
+def build_data_loaders(names, transforms, is_train=True, distributed=False, batch_size=1, num_workers=8):
+    datasets = build_datasets(names, transforms=transforms, is_train=is_train)
     data_loaders = []
     for dataset in datasets:
         if distributed:

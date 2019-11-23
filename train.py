@@ -70,9 +70,9 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10,
 
 
 def main(cfg, args):
-    train_loader = build_data_loaders(cfg.DATASETS.TRAINS, is_train=True, distributed=args.distributed,
+    train_loader = build_data_loaders(cfg.DATASETS.TRAINS, transforms=cfg.INPUT.TRANSFORMS_TRAIN, is_train=True, distributed=args.distributed,
                                       batch_size=cfg.SOLVER.BATCH_SIZE, num_workers=cfg.DATALOADER.NUM_WORKERS)
-    test_loaders = build_data_loaders(cfg.DATASETS.TESTS, is_train=False,
+    test_loaders = build_data_loaders(cfg.DATASETS.TESTS, transforms=cfg.INPUT.TRANSFORMS_TEST, is_train=False,
                                       distributed=args.distributed, num_workers=cfg.DATALOADER.NUM_WORKERS)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

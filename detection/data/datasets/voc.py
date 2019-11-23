@@ -1,61 +1,26 @@
 from .dataset import VOCDataset
 
-# normalizer = {
-#     'name': 'normalize',
-#     'mean': [102.9801, 115.9465, 122.7717],
-#     'std': [1, 1, 1],
-#     'to_bgr': True,
-# }
-
-normalizer = {
-    'name': 'normalize',
-    'mean': [0.5, 0.5, 0.5],
-    'std': [0.5, 0.5, 0.5],
-    'to_01': True,
-}
-train_transforms = [
-    {
-        'name': 'random_flip'
-    },
-    {
-        'name': 'resize',
-        'min_size': (600,),
-    },
-    normalizer,
-    {
-        'name': 'collect'
-    }
-]
-
-test_transforms = [
-    {
-        'name': 'resize',
-        'min_size': (600,),
-    },
-    normalizer,
-    {
-        'name': 'collect'
-    }
-]
-
 
 class CustomVocDataset(VOCDataset):
     def __init__(self, train, **kwargs):
-        transforms = train_transforms if train else test_transforms
-        super().__init__(transforms=transforms, keep_difficult=not train, **kwargs)
+        super().__init__(keep_difficult=not train, **kwargs)
 
 
 class WatercolorDataset(VOCDataset):
     CLASSES = ('__background__', 'bicycle', 'bird', 'car', 'cat', 'dog', 'person')
 
     def __init__(self, train, **kwargs):
-        transforms = train_transforms if train else test_transforms
-        super().__init__(transforms=transforms, keep_difficult=not train, **kwargs)
+        super().__init__(keep_difficult=not train, **kwargs)
 
 
 class Sim10kDataset(VOCDataset):
     CLASSES = ('__background__', 'car')
 
     def __init__(self, train, **kwargs):
-        transforms = train_transforms if train else test_transforms
-        super().__init__(transforms=transforms, keep_difficult=not train, **kwargs)
+        super().__init__(keep_difficult=not train, **kwargs)
+        img_ids = []
+        for img_id in self.ids:
+            ann = self.get_annotations_by_image_id(img_id)
+            if ann['boxes'].shape[0] > 0:
+                img_ids.append(img_id)
+        self.ids = img_ids
