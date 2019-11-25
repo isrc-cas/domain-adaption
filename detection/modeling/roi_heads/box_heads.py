@@ -125,7 +125,7 @@ class BoxHead(nn.Module):
         self.matcher = Matcher(0.5, 0.5, allow_low_quality_matches=False)
         self.fg_bg_sampler = BalancedPositiveNegativeSampler(batch_size, 0.25)
 
-    def forward(self, images, features, proposals, img_metas, targets=None):
+    def forward(self, features, proposals, img_metas, targets=None):
         if self.training:
             with torch.no_grad():
                 proposals, labels, regression_targets = self.select_training_samples(proposals, targets)

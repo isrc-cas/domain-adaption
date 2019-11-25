@@ -84,7 +84,7 @@ def main(cfg, args):
         model = DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
-    optimizer = torch.optim.Adam([p for p in model.parameters() if p.requires_grad], cfg.SOLVER.LR, betas=(0.9, 0.999), weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    optimizer = torch.optim.SGD([p for p in model.parameters() if p.requires_grad], cfg.SOLVER.LR, momentum=cfg.SOLVER.MOMENTUM, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, cfg.SOLVER.STEPS, gamma=cfg.SOLVER.GAMMA)
 
     if args.resume:
@@ -166,8 +166,8 @@ if __name__ == '__main__':
 
     print(args)
     world_size = dist_utils.get_world_size()
-    if world_size != 4:
-        lr = cfg.SOLVER.LR * (float(world_size) / 4)
+    if world_size != 1:
+        lr = cfg.SOLVER.LR * float(world_size)
         print('Change lr from {} to {}'.format(cfg.SOLVER.LR, lr))
         cfg.merge_from_list(['SOLVER.LR', lr])
 

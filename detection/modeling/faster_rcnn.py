@@ -18,7 +18,7 @@ class FasterRCNN(nn.Module):
             raise ValueError("In training mode, targets should be passed")
         features = self.backbone(images)
         proposals, rpn_losses = self.rpn(images, features, img_metas, targets)
-        dets, box_losses = self.box_head(images, features, proposals, img_metas, targets)
+        dets, box_losses = self.box_head(features, proposals, img_metas, targets)
         loss_dict = {}
         if self.training:
             loss_dict.update(rpn_losses)

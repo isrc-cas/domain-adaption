@@ -1,0 +1,37 @@
+MODEL:
+  BACKBONE:
+    NAME: 'vgg16'
+  ROI_BOX_HEAD:
+    NUM_CLASSES: 9
+    BOX_PREDICTOR: 'vgg16_predictor'
+    POOL_TYPE: 'pooling'
+DATASETS:
+  TRAINS: ['cityscapes_train']
+  TESTS: ['cityscapes_val', 'foggy_cityscapes_val']
+INPUT:
+  TRANSFORMS_TRAIN:
+    - name: 'random_flip'
+    - name: 'resize'
+      min_size: 600
+    - name: 'normalize'
+      mean: [102.9801, 115.9465, 122.7717]
+      std: [1, 1, 1]
+      to_bgr: True
+    - name: 'collect'
+  TRANSFORMS_TEST:
+    - name: 'resize'
+      min_size: 600
+    - name: 'normalize'
+      mean: [102.9801, 115.9465, 122.7717]
+      std: [1, 1, 1]
+      to_bgr: True
+    - name: 'collect'
+SOLVER:
+  EPOCHS: 25
+  STEPS: (16, 22)
+  LR: 0.001
+  BATCH_SIZE: 1
+TEST:
+  EVAL_TYPES: ['voc']
+
+WORK_DIR: './work_dir/baseline_cityscapes'
