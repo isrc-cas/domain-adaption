@@ -167,8 +167,8 @@ if __name__ == '__main__':
 
     print(args)
     world_size = dist_utils.get_world_size()
-    if world_size != 1:
-        lr = cfg.SOLVER.LR * float(world_size)
+    if world_size != 4:
+        lr = cfg.SOLVER.LR * (float(world_size) / 4)
         print('Change lr from {} to {}'.format(cfg.SOLVER.LR, lr))
         cfg.merge_from_list(['SOLVER.LR', lr])
 
