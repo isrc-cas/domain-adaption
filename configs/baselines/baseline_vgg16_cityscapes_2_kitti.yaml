@@ -17,6 +17,7 @@ INPUT:
       mean: [0.5, 0.5, 0.5]
       std: [0.5, 0.5, 0.5]
       to_01: True
+    - name: 'collect'
   TRANSFORMS_TEST:
     - name: 'resize'
       min_size: 600
@@ -24,6 +25,7 @@ INPUT:
       mean: [0.5, 0.5, 0.5]
       std: [0.5, 0.5, 0.5]
       to_01: True
+    - name: 'collect'
 SOLVER:
   EPOCHS: 20
   STEPS: (16, 18)
