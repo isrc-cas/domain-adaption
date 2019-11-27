@@ -17,7 +17,7 @@ TRANSFORMS = {
 class compose(object):
     def __init__(self, transforms):
         self.transforms = []
-        for transform in self.transforms:
+        for transform in transforms:
             if isinstance(transform, dict):
                 args = transform.copy()
                 name = args.pop('name')
