@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import torch
 
-from .container import Container
+from detection.data.container import Container
 
 
 class random_flip(object):
@@ -138,7 +138,7 @@ def de_normalize(image, img_meta):
 
 class collect(object):
 
-    def __init__(self, meta_keys=('img_shape', 'flip', 'origin_img_shape', 'scale_factor', 'img_norm', 'img_info')):
+    def __init__(self, meta_keys=('img_shape', 'flip', 'origin_img_shape', 'scale_factor', 'img_norm', 'img_info', 'pad_shape')):
         self.meta_keys = meta_keys
 
     def __call__(self, results):
@@ -165,22 +165,3 @@ class compose(object):
         for transform in self.transforms:
             results = transform(results)
         return results
-
-
-TRANSFORMS = {
-    'random_flip': random_flip,
-    'resize': resize,
-    'normalize': normalize,
-    'collect': collect,
-    'pad': pad,
-}
-
-
-def build_transforms(transforms):
-    results = []
-    for cfg in transforms:
-        args = cfg.copy()
-        name = args.pop('name')
-        transform = TRANSFORMS[name](**args)
-        results.append(transform)
-    return compose(results)

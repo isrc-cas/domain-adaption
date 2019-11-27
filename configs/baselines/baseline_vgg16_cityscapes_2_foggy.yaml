@@ -1,0 +1,24 @@
+MODEL:
+  BACKBONE:
+    NAME: 'vgg16'
+  ROI_BOX_HEAD:
+    NUM_CLASSES: 9
+    BOX_PREDICTOR: 'vgg16_predictor'
+    POOL_TYPE: 'pooling'
+DATASETS:
+  TRAINS: ['cityscapes_train']
+  TESTS: ['foggy_cityscapes_val_0.02']
+INPUT:
+  TRANSFORMS_TRAIN:
+    - name: '_train01'
+  TRANSFORMS_TEST:
+    - name: '_test01'
+SOLVER:
+  EPOCHS: 25
+  STEPS: (16, 22)
+  LR: 1e-5
+  BATCH_SIZE: 1
+TEST:
+  EVAL_TYPES: ['voc']
+
+WORK_DIR: './work_dir/baseline_cityscapes_2_foggy'

@@ -98,15 +98,17 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
 class BoxHead(nn.Module):
     def __init__(self, cfg, in_channels):
         super().__init__()
-        batch_size = cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE
-        score_thresh = cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST
-        nms_thresh = cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST
-        detections_per_img = cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMG
+        # fmt:off
+        batch_size           = cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE
+        score_thresh         = cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST
+        nms_thresh           = cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST
+        detections_per_img   = cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMG
 
-        box_predictor = cfg.MODEL.ROI_BOX_HEAD.BOX_PREDICTOR
-        spatial_scale = cfg.MODEL.ROI_BOX_HEAD.POOL_SPATIAL_SCALE
-        pool_size = cfg.MODEL.ROI_BOX_HEAD.POOL_RESOLUTION
-        pool_type = cfg.MODEL.ROI_BOX_HEAD.POOL_TYPE
+        box_predictor        = cfg.MODEL.ROI_BOX_HEAD.BOX_PREDICTOR
+        spatial_scale        = cfg.MODEL.ROI_BOX_HEAD.POOL_SPATIAL_SCALE
+        pool_size            = cfg.MODEL.ROI_BOX_HEAD.POOL_RESOLUTION
+        pool_type            = cfg.MODEL.ROI_BOX_HEAD.POOL_TYPE
+        # fmt:on
 
         self.score_thresh = score_thresh
         self.nms_thresh = nms_thresh

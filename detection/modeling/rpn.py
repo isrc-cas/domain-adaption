@@ -14,13 +14,16 @@ from .anchor_generator import AnchorGenerator
 class RPN(nn.Module):
     def __init__(self, cfg, in_channels):
         super().__init__()
-        batch_size = cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE
-        anchor_stride = cfg.MODEL.RPN.ANCHOR_STRIDE
-        anchor_scales = cfg.MODEL.RPN.ANCHOR_SIZES
-        anchor_ratios = cfg.MODEL.RPN.ASPECT_RATIOS
-        num_channels = cfg.MODEL.RPN.NUM_CHANNELS
-        num_anchors = len(anchor_scales) * len(anchor_ratios)
-        nms_thresh = cfg.MODEL.RPN.NMS_THRESH
+        # fmt:off
+        batch_size          = cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE
+        anchor_stride       = cfg.MODEL.RPN.ANCHOR_STRIDE
+        anchor_scales       = cfg.MODEL.RPN.ANCHOR_SIZES
+        anchor_ratios       = cfg.MODEL.RPN.ASPECT_RATIOS
+        num_channels        = cfg.MODEL.RPN.NUM_CHANNELS
+        nms_thresh          = cfg.MODEL.RPN.NMS_THRESH
+        min_size            = cfg.MODEL.RPN.MIN_SIZE
+        num_anchors         = len(anchor_scales) * len(anchor_ratios)
+        # fmt:on
 
         self.pre_nms_top_n = {
             True: cfg.MODEL.RPN.PRE_NMS_TOP_N_TRAIN,
@@ -31,6 +34,7 @@ class RPN(nn.Module):
             False: cfg.MODEL.RPN.POST_NMS_TOP_N_TEST,
         }
         self.nms_thresh = nms_thresh
+        self.min_size = min_size
 
         num_channels = in_channels if num_channels is None else num_channels
         self.conv = nn.Conv2d(
@@ -105,7 +109,7 @@ class RPN(nn.Module):
         for proposal, score, img_meta in zip(proposals, objectness, img_metas):
             img_width, img_height = img_meta['img_shape']
             proposal = box_ops.clip_boxes_to_image(proposal, (img_height, img_width))
-            keep = box_ops.remove_small_boxes(proposal, 1)
+            keep = box_ops.remove_small_boxes(proposal, self.min_size)
 
             proposal = proposal[keep]
             score = score[keep]

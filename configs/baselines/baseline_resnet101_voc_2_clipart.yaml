@@ -1,0 +1,26 @@
+MODEL:
+  BACKBONE:
+    NAME: 'resnet101'
+  RPN:
+    ANCHOR_SIZES: (64, 128, 256, 512)
+  ROI_BOX_HEAD:
+    NUM_CLASSES: 21
+    BOX_PREDICTOR: 'resnet101_predictor'
+    POOL_TYPE: 'align'
+DATASETS:
+  TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
+  TESTS: ['voc_clipart_traintest']
+INPUT:
+  TRANSFORMS_TRAIN:
+    - name: '_train01'
+  TRANSFORMS_TEST:
+    - name: '_test01'
+SOLVER:
+  EPOCHS: 10
+  STEPS: (8, 9)
+  LR: 1e-5
+  BATCH_SIZE: 1
+TEST:
+  EVAL_TYPES: ['voc']
+
+WORK_DIR: './work_dir/baseline_voc_2_clipart'

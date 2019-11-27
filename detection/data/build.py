@@ -33,6 +33,18 @@ DATASETS = {
         'root': foggy_cityscapes_images_dir,
     },
 
+    'foggy_cityscapes_train_0.02': {
+        'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_train.json',
+        'root': foggy_cityscapes_images_dir,
+        'betas': 0.02,
+    },
+
+    'foggy_cityscapes_val_0.02': {
+        'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_val.json',
+        'root': foggy_cityscapes_images_dir,
+        'betas': 0.02,
+    },
+
     'foggy_cityscapes_test': {
         'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_test.json',
         'root': foggy_cityscapes_images_dir,

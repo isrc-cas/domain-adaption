@@ -2,18 +2,37 @@ import numpy as np
 from .dataset import COCODataset
 
 
-class CityscapeDataset(COCODataset):
+class CityscapeDatasetMixin:
+    def filter_ids(self, betas=None):
+        if betas is not None:
+            if not isinstance(betas, (list, tuple)):
+                betas = (betas,)
+            img_ids = []
+            for img_id in self.ids:
+                img_info = self.coco.loadImgs(img_id)[0]
+                file_name = img_info['file_name']
+                for beta in betas:
+                    if '_beta_{}.png'.format(beta) in file_name:
+                        img_ids.append(img_id)
+            return img_ids
+        else:
+            return self.ids
+
+
+class CityscapeDataset(COCODataset, CityscapeDatasetMixin):
     CLASSES = ('__background__', 'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle')
 
-    def __init__(self, train, **kwargs):
+    def __init__(self, train, betas=None, **kwargs):
         super().__init__(remove_empty=train, **kwargs)
+        self.ids = self.filter_ids(betas=betas)
 
 
-class CityscapeCarDataset(COCODataset):
+class CityscapeCarDataset(COCODataset, CityscapeDatasetMixin):
     CLASSES = ('__background__', 'car')
 
-    def __init__(self, train, **kwargs):
+    def __init__(self, train, betas=None, **kwargs):
         super().__init__(remove_empty=train, **kwargs)
+        self.ids = self.filter_ids(betas=betas)
         coco = self.coco
         car_id = coco.getCatIds(catNms='car')[0]
         if train:

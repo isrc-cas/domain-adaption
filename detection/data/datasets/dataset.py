@@ -170,7 +170,7 @@ class VOCDataset(ABSDataset):
             difficult.append(is_difficult)
             label_id = self.CLASSES.index(label_name)
             box = obj['bndbox']
-            box = list(map(float, [box['xmin'], box['ymin'], box['xmax'], box['ymax']]))
+            box = list(map(lambda x: float(x) - 1, [box['xmin'], box['ymin'], box['xmax'], box['ymax']]))
             boxes.append(box)
             labels.append(label_id)
         boxes = np.array(boxes).reshape((-1, 4))
