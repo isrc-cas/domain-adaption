@@ -155,3 +155,13 @@ class collect(object):
 
         target = Container(target)
         return img, img_meta, target
+
+
+class compose(object):
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, results):
+        for transform in self.transforms:
+            results = transform(results)
+        return results

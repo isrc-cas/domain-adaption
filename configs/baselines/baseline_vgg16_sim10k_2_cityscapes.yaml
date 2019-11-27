@@ -10,9 +10,20 @@ DATASETS:
   TESTS: ['cityscapes_car_val']
 INPUT:
   TRANSFORMS_TRAIN:
-    - name: '_train01'
+    - name: 'random_flip'
+    - name: 'resize'
+      min_size: 600
+    - name: 'normalize'
+      mean: [0.5, 0.5, 0.5]
+      std: [0.5, 0.5, 0.5]
+      to_01: True
   TRANSFORMS_TEST:
-    - name: '_test01'
+    - name: 'resize'
+      min_size: 600
+    - name: 'normalize'
+      mean: [0.5, 0.5, 0.5]
+      std: [0.5, 0.5, 0.5]
+      to_01: True
 SOLVER:
   EPOCHS: 20
   STEPS: (16, 18)
