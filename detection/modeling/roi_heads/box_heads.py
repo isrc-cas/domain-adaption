@@ -7,6 +7,7 @@ from torchvision import ops, models
 from torchvision.ops import boxes as box_ops
 
 from detection.layers import FrozenBatchNorm2d, smooth_l1_loss
+from detection.layers import cat
 from detection.modeling.utils import BalancedPositiveNegativeSampler, BoxCoder, Matcher
 
 
@@ -71,8 +72,8 @@ BOX_PREDICTORS = {
 
 
 def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
-    labels = torch.cat(labels, dim=0)
-    regression_targets = torch.cat(regression_targets, dim=0)
+    labels = cat(labels, dim=0)
+    regression_targets = cat(regression_targets, dim=0)
 
     classification_loss = F.cross_entropy(class_logits, labels)
 
@@ -153,7 +154,7 @@ class BoxHead(nn.Module):
         device = class_logits.device
 
         boxes_per_image = [box.shape[0] for box in proposals]
-        proposals = torch.cat([box for box in proposals])
+        proposals = cat([box for box in proposals])
         pred_boxes = self.box_coder.decode(
             box_regression.view(sum(boxes_per_image), -1), proposals
         )

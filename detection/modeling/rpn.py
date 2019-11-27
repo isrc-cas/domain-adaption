@@ -6,7 +6,7 @@ from torchvision import ops
 
 from torchvision.ops import boxes as box_ops
 
-from detection.layers import smooth_l1_loss
+from detection.layers import smooth_l1_loss, cat
 from .utils import BalancedPositiveNegativeSampler, Matcher, BoxCoder
 from .anchor_generator import AnchorGenerator
 
@@ -90,7 +90,7 @@ class RPN(nn.Module):
         objectness = objectness.sigmoid()
 
         box_regression = box_regression.permute(0, 2, 3, 1).reshape(N, H * W * A, 4)
-        concat_anchors = torch.cat(anchors, dim=0)
+        concat_anchors = cat(anchors, dim=0)
         concat_anchors = concat_anchors.reshape(N, A * H * W, 4)
 
         num_anchors = A * H * W
@@ -162,15 +162,15 @@ class RPN(nn.Module):
 
         sampled_pos_inds, sampled_neg_inds = self.sampler(labels)
 
-        sampled_pos_inds = torch.nonzero(torch.cat(sampled_pos_inds, dim=0)).squeeze(1)
-        sampled_neg_inds = torch.nonzero(torch.cat(sampled_neg_inds, dim=0)).squeeze(1)
+        sampled_pos_inds = torch.nonzero(cat(sampled_pos_inds, dim=0)).squeeze(1)
+        sampled_neg_inds = torch.nonzero(cat(sampled_neg_inds, dim=0)).squeeze(1)
         sampled_inds = torch.cat([sampled_pos_inds, sampled_neg_inds], dim=0)
 
         objectness = objectness.permute(0, 2, 3, 1).reshape(-1)
         box_regression = box_regression.permute(0, 2, 3, 1).reshape(-1, 4)
 
-        labels = torch.cat(labels)
-        regression_targets = torch.cat(regression_targets, dim=0)
+        labels = cat(labels)
+        regression_targets = cat(regression_targets, dim=0)
 
         box_loss = smooth_l1_loss(
             box_regression[sampled_pos_inds],
