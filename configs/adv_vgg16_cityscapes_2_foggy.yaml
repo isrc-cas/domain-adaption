@@ -9,6 +9,7 @@ MODEL:
     POOL_TYPE: 'align'
 DATASETS:
   TRAINS: ['cityscapes_train']
+  TARGETS: ['foggy_cityscapes_train_0.02']
   TESTS: ['foggy_cityscapes_val_0.02']
 INPUT:
   TRANSFORMS_TRAIN:
@@ -36,4 +37,4 @@ SOLVER:
 TEST:
   EVAL_TYPES: ['voc']
 
-WORK_DIR: './work_dir/baseline_cityscapes_2_foggy_align'
+WORK_DIR: './work_dir/adv_cityscapes_2_foggy'

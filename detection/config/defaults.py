@@ -46,7 +46,7 @@ _C.MODEL.RPN.PRE_NMS_TOP_N_TEST = 6000
 _C.MODEL.RPN.POST_NMS_TOP_N_TRAIN = 2000
 _C.MODEL.RPN.POST_NMS_TOP_N_TEST = 300
 _C.MODEL.RPN.NMS_THRESH = 0.7
-_C.MODEL.RPN.MIN_SIZE = 0
+_C.MODEL.RPN.MIN_SIZE = 1
 
 # ---------------------------------------------------------------------------- #
 # ROI HEADS options

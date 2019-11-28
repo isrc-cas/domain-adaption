@@ -35,9 +35,10 @@ class VGG16BoxPredictor(nn.Module):
     def forward(self, box_features):
         box_features = box_features.view(box_features.size(0), -1)
         box_features = self.classifier(box_features)
+
         class_logits = self.cls_score(box_features)
         box_regression = self.bbox_pred(box_features)
-        return class_logits, box_regression
+        return class_logits, box_regression, box_features
 
 
 class ResNetBoxPredictor(nn.Module):
@@ -60,9 +61,10 @@ class ResNetBoxPredictor(nn.Module):
     def forward(self, box_features):
         box_features = self.extractor(box_features)
         box_features = torch.mean(box_features, dim=(2, 3))
+
         class_logits = self.cls_score(box_features)
         box_regression = self.bbox_pred(box_features)
-        return class_logits, box_regression
+        return class_logits, box_regression, box_features
 
 
 BOX_PREDICTORS = {
@@ -129,15 +131,20 @@ class BoxHead(nn.Module):
         self.fg_bg_sampler = BalancedPositiveNegativeSampler(batch_size, 0.25)
 
     def forward(self, features, proposals, img_metas, targets=None):
-        if self.training:
+        if self.training and targets is not None:
             with torch.no_grad():
                 proposals, labels, regression_targets = self.select_training_samples(proposals, targets)
 
+        is_target_domain = self.training and targets is None
+
         box_features = self.pooler(features, proposals)
 
-        class_logits, box_regression = self.box_predictor(box_features)
+        class_logits, box_regression, box_features = self.box_predictor(box_features)
 
-        if self.training:
+        if is_target_domain:
+            return [], {}, box_features
+
+        if self.training and targets is not None:
             classification_loss, box_loss = fastrcnn_loss(class_logits, box_regression, labels, regression_targets)
             loss = {
                 'rcnn_cls_loss': classification_loss,
@@ -147,7 +154,7 @@ class BoxHead(nn.Module):
         else:
             loss = {}
             dets = self.post_processor(class_logits, box_regression, proposals, img_metas)
-        return dets, loss
+        return dets, loss, box_features
 
     def post_processor(self, class_logits, box_regression, proposals, img_metas):
         num_classes = class_logits.shape[1]

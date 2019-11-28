@@ -14,6 +14,7 @@ from .anchor_generator import AnchorGenerator
 class RPN(nn.Module):
     def __init__(self, cfg, in_channels):
         super().__init__()
+        self.cfg = cfg
         # fmt:off
         batch_size          = cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE
         anchor_stride       = cfg.MODEL.RPN.ANCHOR_STRIDE
@@ -56,10 +57,12 @@ class RPN(nn.Module):
         t = F.relu(self.conv(features))
         logits = self.cls_logits(t)
         bbox_reg = self.bbox_pred(t)
-        with torch.no_grad():
-            proposals = self.generate_proposals(anchors, logits, bbox_reg, img_metas)
 
-        if self.training:
+        is_target_domain = self.training and targets is None
+        with torch.no_grad():
+            proposals = self.generate_proposals(anchors, logits, bbox_reg, img_metas, is_target_domain)
+
+        if self.training and targets is not None:
             objectness_loss, box_loss = self.losses(anchors, logits, bbox_reg, img_metas, targets)
             loss = {
                 'rpn_cls_loss': objectness_loss,
@@ -68,19 +71,22 @@ class RPN(nn.Module):
         else:
             loss = {}
 
-        return proposals, loss
+        return proposals, loss, logits
 
-    def generate_proposals(self, anchors, objectness, box_regression, img_metas):
+    def generate_proposals(self, anchors, objectness, box_regression, img_metas, is_target_domain=False):
         """
         Args:
             anchors:
             objectness: (N, A, H, W)
             box_regression: (N, A * 4, H, W)
             img_metas:
+            is_target_domain:
         Returns:
         """
         pre_nms_top_n = self.pre_nms_top_n[self.training]
         post_nms_top_n = self.post_nms_top_n[self.training]
+        if is_target_domain:
+            post_nms_top_n = self.cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE
         nms_thresh = self.nms_thresh
 
         device = objectness.device
@@ -170,7 +176,7 @@ class RPN(nn.Module):
         box_regression = box_regression.permute(0, 2, 3, 1).reshape(-1, 4)
 
         labels = cat(labels)
-        regression_targets = cat(regression_targets, dim=0)
+        regression_targets = cat(regression_targets)
 
         box_loss = smooth_l1_loss(
             box_regression[sampled_pos_inds],

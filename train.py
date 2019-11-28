@@ -46,7 +46,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10,
         images = images.to(device)
         targets = [t.to(device) for t in targets]
 
-        loss_dict = model(images, img_metas, targets)
+        loss_dict, _ = model(images, img_metas, targets)
         losses = sum(list(loss_dict.values()))
 
         loss_dict_reduced = dist_utils.reduce_dict(loss_dict)
