@@ -9,6 +9,10 @@ MODEL:
     POOL_TYPE: 'align'
 ADV:
   IN_CHANNELS: 1024
+  WINDOWS:
+    START_SIZE: 21
+    STOP_SIZE: -1
+    NUM_WINDOWS: 3
 DATASETS:
   TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
   TARGETS: ['voc_clipart_traintest']
