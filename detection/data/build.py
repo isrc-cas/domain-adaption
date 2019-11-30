@@ -74,14 +74,14 @@ DATASETS = {
     },
 
     # -----------watercolor----------
-    'watercolor_pascal_2012_trainval': {
+    'watercolor_voc_2012_trainval': {
         'root': '/data7/lufficc/voc/VOCdevkit/VOC2012',
         'split': 'trainval',
     },
 
-    'watercolor_pascal_2007_test': {
+    'watercolor_voc_2007_trainval': {
         'root': '/data7/lufficc/voc/VOCdevkit/VOC2007',
-        'split': 'test',
+        'split': 'trainval',
     },
     'watercolor_train': {
         'root': '/data7/lufficc/cross_domain_detection/watercolor',

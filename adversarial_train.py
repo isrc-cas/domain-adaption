@@ -3,7 +3,7 @@ import datetime
 import math
 import os
 import time
-
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -36,6 +36,13 @@ def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
     return torch.optim.lr_scheduler.LambdaLR(optimizer, f)
 
 
+def box_to_centers(boxes):
+    x = boxes[:, 2] - boxes[:, 0]
+    y = boxes[:, 3] - boxes[:, 1]
+    center = torch.stack((x, y), dim=1)
+    return center
+
+
 def detach_features(features):
     if isinstance(features, torch.Tensor):
         return features.detach()
@@ -62,31 +69,40 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
 
     source_label = 1
     target_label = 0
-    target_loader = iter(target_loader)
+    target_loader_iter = iter(target_loader)
     for images, img_metas, targets in metric_logger.log_every(train_loader, print_freq, header):
         global_step += 1
         images = images.to(device)
         targets = [t.to(device) for t in targets]
 
-        t_images, t_img_metas, _ = next(target_loader)
+        try:
+            t_images, t_img_metas, _ = next(target_loader_iter)
+        except StopIteration:
+            target_loader_iter = iter(target_loader)
+            t_images, t_img_metas, _ = next(target_loader_iter)
+
         t_images = t_images.to(device)
 
         loss_dict, outputs = model(images, img_metas, targets, t_images, t_img_metas)
         loss_dict_for_log = dict(loss_dict)
 
-        s_windows = outputs['s_windows']
-        t_windows = outputs['t_windows']
+        s_features = outputs['s_features']
+        t_features = outputs['t_features']
         s_rpn_logits = outputs['s_rpn_logits']
         t_rpn_logits = outputs['t_rpn_logits']
         s_box_features = outputs['s_box_features']
         t_box_features = outputs['t_box_features']
+        s_roi_features = outputs['s_roi_features']
+        t_roi_features = outputs['t_roi_features']
+        s_proposals = outputs['s_proposals']
+        t_proposals = outputs['t_proposals']
 
         # -------------------------------------------------------------------
         # -----------------------------1.Train D-----------------------------
         # -------------------------------------------------------------------
 
-        s_dis_loss = dis_model(detach_features(s_windows), source_label, s_rpn_logits.detach(), s_box_features.detach())
-        t_dis_loss = dis_model(detach_features(t_windows), target_label, t_rpn_logits.detach(), t_box_features.detach())
+        s_dis_loss = dis_model(detach_features(s_features), source_label, s_rpn_logits.detach(), s_box_features.detach(), s_roi_features.detach(), s_proposals)
+        t_dis_loss = dis_model(detach_features(t_features), target_label, t_rpn_logits.detach(), t_box_features.detach(), t_roi_features.detach(), t_proposals)
 
         dis_loss = s_dis_loss + t_dis_loss
         loss_dict_for_log['s_dis_loss'] = s_dis_loss
@@ -100,7 +116,7 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
         # -----------------------------2.Train G-----------------------------
         # -------------------------------------------------------------------
 
-        adv_loss = dis_model(t_windows, source_label, t_rpn_logits, t_box_features)
+        adv_loss = dis_model(t_features, source_label, t_rpn_logits, t_box_features, t_roi_features, t_proposals)
         loss_dict_for_log['adv_loss'] = adv_loss
         gamma = 1e-2
 
@@ -131,31 +147,100 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
                 writer.add_scalar('lr_dis', dis_optimizer.param_groups[0]['lr'], global_step=global_step)
 
 
+class LocalWindowExtractor:
+    def __init__(self, start_size, stop_size, num_windows):
+        assert 1 != start_size, 'Not support window size 1'
+        self.start_size = start_size
+        self.stop_size = stop_size
+        self.num_windows = num_windows
+
+    def __call__(self, feature):
+        N, C, H, W = feature.shape
+        windows = []
+        stop = min(H, W) if self.stop_size == -1 else self.stop_size
+        start = self.start_size if self.start_size > 0 else (self.start_size + stop)
+        num = self.num_windows
+        window_sizes = np.linspace(start=start, stop=stop, num=num).round().astype('int')
+        window_sizes = window_sizes.tolist()
+        for i, K in enumerate(window_sizes):
+            stride = max(1, (K - 1) // 2)
+            NEW_H, NEW_W = int((H - K) / stride + 1), int((W - K) / stride + 1)
+
+            img_windows = F.unfold(feature, kernel_size=K, stride=stride)
+            img_windows = img_windows.view(N, C, K, K, -1)
+            var, mean = torch.var_mean(img_windows, dim=(2, 3), unbiased=False)  # (N, C, NEW_H * NEW_W)
+            std = torch.sqrt(var + 1e-12)
+            x = torch.cat((mean, std), dim=1)  # (N, C * 2, NEW_H * NEW_W)
+            x = x.view(N, C * 2, NEW_H, NEW_W)
+            windows.append(x)
+
+        return windows
+
+
 class DisModelPerLevel(nn.Module):
-    def __init__(self, cfg, in_channels=512, window_sizes=(3, 7, 13, 21, 32)):
+    def __init__(self, cfg):
         super().__init__()
         # fmt:off
         anchor_scales       = cfg.MODEL.RPN.ANCHOR_SIZES
         anchor_ratios       = cfg.MODEL.RPN.ASPECT_RATIOS
         num_anchors         = len(anchor_scales) * len(anchor_ratios)
+
+        pairwise_func       = cfg.ADV.PAIRWISE_FUNC
+        use_scale           = cfg.ADV.USE_SCALE
+        center_styles_mode  = cfg.ADV.CENTER_STYLES_MODE
+        in_channels         = cfg.ADV.IN_CHANNELS
+        normalize_residual  = cfg.ADV.NORMALIZE_RESIDUAL
+        normalize_before_mm = cfg.ADV.NORMALIZE_BEFORE_MM
+
+        start_size          = cfg.ADV.WINDOWS.START_SIZE
+        stop_size           = cfg.ADV.WINDOWS.STOP_SIZE
+        num_windows         = cfg.ADV.WINDOWS.NUM_WINDOWS
         # fmt:on
 
-        self.window_sizes = window_sizes
+        self.pairwise_func = pairwise_func
+        self.use_scale = use_scale
+        self.center_styles_mode = center_styles_mode
+        self.in_channels = in_channels
+        self.normalize_residual = normalize_residual
+        self.normalize_before_mm = normalize_before_mm
+
+        self.num_windows = num_windows
+        self.local_window_extractor = LocalWindowExtractor(start_size, stop_size, num_windows)
         self.model_list = nn.ModuleList()
         # self.weight_list = nn.ModuleList()
+        self.theta_list = nn.ModuleList()
+        self.phi_list = nn.ModuleList()
 
-        for _ in range(len(self.window_sizes)):
+        self.inter_channels = in_channels
+        for _ in range(num_windows):
             self.model_list += [
                 nn.Sequential(
-                    nn.Conv2d(in_channels * 2, in_channels, kernel_size=1),
+                    # nn.Conv2d(in_channels * 2, in_channels, kernel_size=1),
+                    # nn.LeakyReLU(0.2, inplace=True),
+                    # nn.Conv2d(in_channels, 256, kernel_size=1),
+                    # nn.LeakyReLU(0.2, inplace=True),
+                    # nn.Conv2d(256, 128, kernel_size=1),
+                    # nn.LeakyReLU(0.2, inplace=True),
+                    # nn.Conv2d(128, 1, kernel_size=1),
+                    # Linear
+                    nn.Linear(in_channels * 2, in_channels),
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.Conv2d(in_channels, 256, kernel_size=1),
+                    nn.Linear(in_channels, 256),
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.Conv2d(256, 128, kernel_size=1),
+                    nn.Linear(256, 128),
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.Conv2d(128, 1, kernel_size=1),
+                    nn.Linear(128, 1),
                 )
             ]
+
+            # self.theta_list += [
+            #     nn.Conv2d(in_channels * 2, self.inter_channels, 1)
+            # ]
+            self.theta = nn.Conv2d(in_channels * 2, self.inter_channels, 1)
+            self.phi_list += [
+                nn.Conv2d(in_channels * 2, self.inter_channels, 1)
+            ]
+
             # self.weight_list += [
             #     nn.Sequential(
             #         nn.Conv2d(in_channels * 2 + 1, 128, 1),
@@ -165,22 +250,100 @@ class DisModelPerLevel(nn.Module):
             #     )
             # ]
 
-    def forward(self, window_features, label, rpn_logits, box_features):
+    def embedded_gaussian(self, theta_x, phi_x):
+        """
+        Args:
+            theta_x: (n, num_windows, c)
+            phi_x: (n, c, hxw)
+        Returns:
+        """
+        if self.normalize_before_mm:
+            theta_x = F.normalize(theta_x, dim=2)
+            phi_x = F.normalize(phi_x, dim=1)
+        # pairwise_weight: [N, num_windows, hxw]
+        pairwise_weight = torch.matmul(theta_x, phi_x)
+        if self.use_scale and not self.normalize_before_mm:
+            # theta_x.shape[-1] is `self.inter_channels`
+            pairwise_weight /= (theta_x.shape[-1] ** 0.5)
+        pairwise_weight = pairwise_weight.softmax(dim=-1)
+        return pairwise_weight
+
+    def dot_product(self, theta_x, phi_x):
+        """
+        Args:
+            theta_x: (n, num_windows, c)
+            phi_x: (n, c, hxw)
+        Returns:
+        """
+        # pairwise_weight: [N, num_windows, hxw]
+        pairwise_weight = torch.matmul(theta_x, phi_x)
+        pairwise_weight /= pairwise_weight.shape[-1]
+        return pairwise_weight
+
+    def forward(self, feature, label, rpn_logits, box_features, roi_features, proposals):
         # rpn_semantic_map = torch.mean(rpn_logits, dim=1, keepdim=True)
+        # print(roi_features.shape) # [128, 512, 7, 7]
+        window_features = self.local_window_extractor(feature)
+
         logits = []
-        for i, x in enumerate(window_features):
-            _, _, window_h, window_w = x.shape
+        center_styles_mode = self.center_styles_mode
+        inter_channels = self.inter_channels
 
-            avg_x = torch.mean(x, dim=(2, 3), keepdim=True)  # (N, C * 2, 1, 1)
-            avg_x_expanded = avg_x.expand(-1, -1, window_h, window_w)  # (N, C * 2, h, w)
+        if center_styles_mode == 'avg':
+            num_centers = self.num_windows
+            center_styles = [torch.mean(x, dim=(2, 3), keepdim=True) for x in window_features]  # [(n, c, 1, 1)]
+            center_styles = torch.stack(center_styles, dim=0)  # (num_windows, n, c, 1, 1)
+        elif center_styles_mode == 'roi':
+            # TODO: batch_size maybe not 1
+            assert len(proposals) == 1
+            roi_features = roi_features[torch.randperm(roi_features.shape[0])[:16]]
+            num_centers = roi_features.shape[0]
+            var, mean = torch.var_mean(roi_features, dim=(2, 3), keepdim=True, unbiased=False)
+            std = torch.sqrt(var + 1e-12)
+            center_styles = torch.cat((mean, std), dim=1)  # (num_roi, c, 1, 1)
+            center_styles = center_styles.unsqueeze(1)  # (num_roi, n, c, 1, 1)
+        else:
+            raise ValueError
+        _, n, c, _, _ = center_styles.shape
+        theta_x = self.theta(center_styles.view(num_centers * n, c, 1, 1)).view(num_centers, n, inter_channels)
+        theta_x = theta_x.permute(1, 0, 2)
+        for i, x in enumerate(window_features):  # (n, c, h, w)
+            n, c, h, w = x.shape
+            # theta = self.theta_list[i]
+            phi = self.phi_list[i]
 
-            # rpn_semantic_map_per_level = F.interpolate(rpn_semantic_map, size=(window_h, window_w), mode='bilinear', align_corners=True)
-            # rpn_semantic_map_per_level = torch.cat((x, rpn_semantic_map_per_level), dim=1)
-            # weight = self.weight_list[i](rpn_semantic_map_per_level)  # (N, 1, h, w)
-            # residual = weight * (x - avg_x_expanded)
-            residual = (x - avg_x_expanded)
+            # (n, num_windows, c)
+            # theta_x = theta(center_styles.view(num_centers * n, c, 1, 1)).view(num_centers, n, inter_channels)
+            # theta_x = theta_x.permute(1, 0, 2)
 
-            x = self.model_list[i](residual)
+            # (n, c, hxw)
+            phi_x = phi(x).view(n, inter_channels, -1)
+
+            # (N, num_windows, hxw)
+            pairwise_func = getattr(self, self.pairwise_func)
+            pairwise_weight = pairwise_func(theta_x, phi_x)
+
+            # (N, num_windows, 1, hxw)
+            pairwise_weight = pairwise_weight.unsqueeze(dim=2)
+
+            # (1, n, c, h, w)
+            x = x.unsqueeze(0)
+
+            # (num_windows, n, c, h, w)
+            residual = (x - center_styles)
+
+            # (n, num_windows, c, h, w)
+            residual = residual.permute(1, 0, 2, 3, 4)
+
+            # (n, num_windows, c, hxw)
+            residual = residual.view(n, num_centers, c, -1)
+
+            # (n, num_windows, c)
+            residual = (pairwise_weight * residual).sum(dim=3)
+            if self.normalize_residual:
+                residual = F.normalize(residual, dim=2)
+
+            x = self.model_list[i](residual.view(n * num_centers, c))
             logits.append(x)
 
         losses = sum(F.binary_cross_entropy_with_logits(l, torch.full_like(l, label)) for l in logits)
@@ -191,15 +354,13 @@ class Discriminator(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.layers = nn.ModuleList([
-            DisModelPerLevel(cfg, in_channels=512, window_sizes=(3, 7, 13, 21, 32)),  # (1, 512, 32, 64)
+            DisModelPerLevel(cfg),  # (1, 512, 32, 64) [(3, 7, 13, 21, 32)]
         ])
 
-    def forward(self, window_features, label, rpn_logits, box_features):
-        if isinstance(window_features[0], torch.Tensor):
-            window_features = (window_features,)
+    def forward(self, features, label, rpn_logits, box_features, roi_features, proposals):
         losses = []
-        for i, (layer, feature) in enumerate(zip(self.layers, window_features)):
-            loss = layer(feature, label, rpn_logits, box_features)
+        for i, (layer, feature) in enumerate(zip(self.layers, features)):
+            loss = layer(feature, label, rpn_logits, box_features, roi_features, proposals)
             losses.append(loss)
         losses = sum(losses)
         return losses
@@ -337,4 +498,7 @@ if __name__ == '__main__':
 
     print(cfg)
     os.makedirs(cfg.WORK_DIR, exist_ok=True)
+    if dist_utils.is_main_process():
+        with open(os.path.join(cfg.WORK_DIR, 'config.yaml'), 'w') as fid:
+            fid.write(str(cfg))
     main(cfg, args)

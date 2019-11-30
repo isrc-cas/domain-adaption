@@ -1,21 +1,18 @@
 MODEL:
   BACKBONE:
-    NAME: 'vgg16'
+    NAME: 'resnet101'
   RPN:
-    ANCHOR_SIZES: (32, 64, 128, 256, 512)
+    ANCHOR_SIZES: (64, 128, 256, 512)
   ROI_BOX_HEAD:
-    NUM_CLASSES: 9
-    BOX_PREDICTOR: 'vgg16_predictor'
+    NUM_CLASSES: 21
+    BOX_PREDICTOR: 'resnet101_predictor'
     POOL_TYPE: 'align'
 ADV:
-  WINDOWS:
-    START_SIZE: 3
-    STOP_SIZE: 32
-    NUM_WINDOWS: 5
+  IN_CHANNELS: 1024
 DATASETS:
-  TRAINS: ['cityscapes_train']
-  TARGETS: ['foggy_cityscapes_train_0.02']
-  TESTS: ['foggy_cityscapes_val_0.02']
+  TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
+  TARGETS: ['voc_clipart_traintest']
+  TESTS: ['voc_clipart_traintest']
 INPUT:
   TRANSFORMS_TRAIN:
     - name: 'random_flip'
@@ -35,11 +32,11 @@ INPUT:
       to_01: True
     - name: 'collect'
 SOLVER:
-  EPOCHS: 25
-  STEPS: (16, 22)
+  EPOCHS: 10
+  STEPS: (8, 9)
   LR: 1e-5
   BATCH_SIZE: 1
 TEST:
   EVAL_TYPES: ['voc']
 
-WORK_DIR: './work_dir/adv_cityscapes_2_foggy'
+WORK_DIR: './work_dir/adv_voc_2_clipart'

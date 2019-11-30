@@ -137,12 +137,12 @@ class BoxHead(nn.Module):
 
         is_target_domain = self.training and targets is None
 
-        box_features = self.pooler(features, proposals)
+        roi_features = self.pooler(features, proposals)
 
-        class_logits, box_regression, box_features = self.box_predictor(box_features)
+        class_logits, box_regression, box_features = self.box_predictor(roi_features)
 
         if is_target_domain:
-            return [], {}, box_features
+            return [], {}, proposals, box_features, roi_features
 
         if self.training and targets is not None:
             classification_loss, box_loss = fastrcnn_loss(class_logits, box_regression, labels, regression_targets)
@@ -154,7 +154,7 @@ class BoxHead(nn.Module):
         else:
             loss = {}
             dets = self.post_processor(class_logits, box_regression, proposals, img_metas)
-        return dets, loss, box_features
+        return dets, loss, proposals, box_features, roi_features
 
     def post_processor(self, class_logits, box_regression, proposals, img_metas):
         num_classes = class_logits.shape[1]

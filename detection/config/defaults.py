@@ -68,6 +68,22 @@ _C.MODEL.ROI_BOX_HEAD.POOL_TYPE = "pooling"
 _C.MODEL.ROI_BOX_HEAD.BOX_PREDICTOR = 'vgg16_predictor'
 
 # ---------------------------------------------------------------------------- #
+# Adversarial options
+# ---------------------------------------------------------------------------- #
+_C.ADV = CN()
+_C.ADV.IN_CHANNELS = 512
+_C.ADV.PAIRWISE_FUNC = 'embedded_gaussian'  # ['embedded_gaussian', 'dot_product']
+_C.ADV.USE_SCALE = True
+_C.ADV.CENTER_STYLES_MODE = 'avg'
+_C.ADV.NORMALIZE_RESIDUAL = True
+_C.ADV.NORMALIZE_BEFORE_MM = True
+
+_C.ADV.WINDOWS = CN()
+_C.ADV.WINDOWS.START_SIZE = 3
+_C.ADV.WINDOWS.STOP_SIZE = -1
+_C.ADV.WINDOWS.NUM_WINDOWS = 5
+
+# ---------------------------------------------------------------------------- #
 # Solver options
 # ---------------------------------------------------------------------------- #
 _C.SOLVER = CN()
