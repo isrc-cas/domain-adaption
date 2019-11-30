@@ -10,7 +10,7 @@ MODEL:
 ADV:
   WINDOWS:
     START_SIZE: 3
-    STOP_SIZE: 32
+    STOP_SIZE: -1
     NUM_WINDOWS: 5
 DATASETS:
   TRAINS: ['cityscapes_train']
