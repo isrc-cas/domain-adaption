@@ -9,10 +9,20 @@ MODEL:
     POOL_TYPE: 'align'
 ADV:
   IN_CHANNELS: 1024
+  METHOD: 'netvlad'
+  GAMMA_FROM: 1e-3
+  GAMMA_TO: 1e-4
+  SELECTIVE:
+    METHOD: 'global'
+  NETVLAD:
+    CENTER_STYLES_MODE: 'avg'
+    WEIGHTED: False
+    USE_FOCAL_LOSS: False
+    WINDOW_WEIGHTS: [1, 1, 1, 1, 1]
   WINDOWS:
-    START_SIZE: 21
+    START_SIZE: 3
     STOP_SIZE: -1
-    NUM_WINDOWS: 3
+    NUM_WINDOWS: 5
 DATASETS:
   TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
   TARGETS: ['voc_clipart_traintest']
@@ -43,4 +53,4 @@ SOLVER:
 TEST:
   EVAL_TYPES: ['voc']
 
-WORK_DIR: './work_dir/adv_voc_2_clipart'
+WORK_DIR: './debug/adv_voc_2_clipart'

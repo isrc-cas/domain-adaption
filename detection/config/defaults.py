@@ -72,16 +72,32 @@ _C.MODEL.ROI_BOX_HEAD.BOX_PREDICTOR = 'vgg16_predictor'
 # ---------------------------------------------------------------------------- #
 _C.ADV = CN()
 _C.ADV.IN_CHANNELS = 512
-_C.ADV.PAIRWISE_FUNC = 'embedded_gaussian'  # ['embedded_gaussian', 'dot_product']
-_C.ADV.USE_SCALE = True
-_C.ADV.CENTER_STYLES_MODE = 'avg'
-_C.ADV.NORMALIZE_RESIDUAL = True
-_C.ADV.NORMALIZE_BEFORE_MM = True
+_C.ADV.METHOD = 'netvlad'
+_C.ADV.GAMMA_FROM = 1e-2
+_C.ADV.GAMMA_TO = 1e-2
+
+_C.ADV.LOSS_FUNC = 'focal_loss'  # ['cross_entropy', 'focal_loss']
+_C.ADV.FOCAL_LOSS_GAMMA = 5
+_C.ADV.LOSS_WEIGHT = 1.0
 
 _C.ADV.WINDOWS = CN()
 _C.ADV.WINDOWS.START_SIZE = 3
 _C.ADV.WINDOWS.STOP_SIZE = -1
 _C.ADV.WINDOWS.NUM_WINDOWS = 5
+
+_C.ADV.NETVLAD = CN()
+_C.ADV.NETVLAD.PAIRWISE_FUNC = 'embedded_gaussian'  # ['embedded_gaussian', 'dot_product']
+_C.ADV.NETVLAD.USE_SCALE = True
+_C.ADV.NETVLAD.CENTER_STYLES_MODE = 'avg'
+_C.ADV.NETVLAD.NORMALIZE_RESIDUAL = True
+_C.ADV.NETVLAD.NORMALIZE_BEFORE_MM = True
+_C.ADV.NETVLAD.USE_FOCAL_LOSS = False
+_C.ADV.NETVLAD.FOCAL_LOSS_GAMMAS = [1, 2]
+_C.ADV.NETVLAD.WEIGHTED = False
+_C.ADV.NETVLAD.WINDOW_WEIGHTS = [1, 1, 1, 1, 1]
+
+_C.ADV.SELECTIVE = CN()
+_C.ADV.SELECTIVE.METHOD = 'weighted'
 
 # ---------------------------------------------------------------------------- #
 # Solver options

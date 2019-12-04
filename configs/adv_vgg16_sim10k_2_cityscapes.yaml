@@ -6,10 +6,24 @@ MODEL:
     BOX_PREDICTOR: 'vgg16_predictor'
     POOL_TYPE: 'align'
 ADV:
+  METHOD: 'selective'
+  LOSS_WEIGHT: 0.1
+  FOCAL_LOSS_GAMMA: 3
+
+  GAMMA_FROM: 1e-2
+  GAMMA_TO: 1e-3
+  SELECTIVE:
+    METHOD: 'global'
+  NETVLAD:
+    CENTER_STYLES_MODE: 'avg'
+    WEIGHTED: False
+    USE_FOCAL_LOSS: False
+    FOCAL_LOSS_GAMMAS: [3, 3, 3, 3, 3]
+    WINDOW_WEIGHTS: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   WINDOWS:
-    START_SIZE: 0
+    START_SIZE: 3
     STOP_SIZE: -1
-    NUM_WINDOWS: 1
+    NUM_WINDOWS: 5
 DATASETS:
   TRAINS: ['sim10k']
   TARGETS: ['cityscapes_car_train']
@@ -40,4 +54,4 @@ SOLVER:
 TEST:
   EVAL_TYPES: ['voc']
 
-WORK_DIR: './work_dir/adv_sim10k_2_cityscape_car'
+WORK_DIR: './debug/adv_sim10k_2_cityscape_car'

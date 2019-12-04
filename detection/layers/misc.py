@@ -32,3 +32,8 @@ class FrozenBatchNorm2d(torch.nn.Module):
         scale = w * rv.rsqrt()
         bias = b - rm * scale
         return x * scale + bias
+
+
+class Flatten(torch.nn.Module):
+    def forward(self, x):
+        return x.view(x.size(0), -1)
