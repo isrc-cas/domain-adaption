@@ -16,16 +16,6 @@ ADV:
       pool_type: 'avg'
       loss_weight: 1.0
       window_sizes: [3, 9, 15, 21, -1]
-  METHOD: 'netvlad'
-  LOSS_FUNC: 'cross_entropy'
-  NETVLAD:
-    WEIGHTED: True
-  SELECTIVE:
-    METHOD: 'meta'
-  WINDOWS:
-    START_SIZE: 3
-    STOP_SIZE: -1
-    NUM_WINDOWS: 5
 DATASETS:
   TRAINS: ['cityscapes_train']
   TARGETS: ['foggy_cityscapes_train_0.02']
