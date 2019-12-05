@@ -5,6 +5,10 @@ MODEL:
     NUM_CLASSES: 2
     BOX_PREDICTOR: 'vgg16_predictor'
     POOL_TYPE: 'pooling'
+ADV:
+  LOSS_WEIGHT: 1.0
+  FOCAL_LOSS_GAMMA: 2
+  LOSS_FUNC: 'focal_loss'
 DATASETS:
   TRAINS: ['kitti_train']
   TARGETS: ['cityscapes_car_train']

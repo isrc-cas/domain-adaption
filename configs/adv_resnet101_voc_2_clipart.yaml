@@ -8,21 +8,14 @@ MODEL:
     BOX_PREDICTOR: 'resnet101_predictor'
     POOL_TYPE: 'align'
 ADV:
-  IN_CHANNELS: 1024
-  METHOD: 'netvlad'
-  GAMMA_FROM: 1e-3
-  GAMMA_TO: 1e-4
-  SELECTIVE:
-    METHOD: 'global'
-  NETVLAD:
-    CENTER_STYLES_MODE: 'avg'
-    WEIGHTED: False
-    USE_FOCAL_LOSS: False
-    WINDOW_WEIGHTS: [1, 1, 1, 1, 1]
-  WINDOWS:
-    START_SIZE: 3
-    STOP_SIZE: -1
-    NUM_WINDOWS: 5
+  LAYERS: [False, False, True]
+  DIS_MODEL:
+    - in_channels: 1024
+      func_name: 'focal_loss'
+      focal_loss_gamma: 5
+      pool_type: 'avg'
+      loss_weight: 1.0
+      window_sizes: [3, 9, 15, 21, -1]
 DATASETS:
   TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
   TARGETS: ['voc_clipart_traintest']

@@ -6,24 +6,19 @@ MODEL:
     BOX_PREDICTOR: 'vgg16_predictor'
     POOL_TYPE: 'align'
 ADV:
-  METHOD: 'selective'
-  LOSS_WEIGHT: 0.1
-  FOCAL_LOSS_GAMMA: 3
-
-  GAMMA_FROM: 1e-2
-  GAMMA_TO: 1e-3
-  SELECTIVE:
-    METHOD: 'global'
-  NETVLAD:
-    CENTER_STYLES_MODE: 'avg'
-    WEIGHTED: False
-    USE_FOCAL_LOSS: False
-    FOCAL_LOSS_GAMMAS: [3, 3, 3, 3, 3]
-    WINDOW_WEIGHTS: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  WINDOWS:
-    START_SIZE: 3
-    STOP_SIZE: -1
-    NUM_WINDOWS: 5
+  LAYERS: [True, False, True]
+  DIS_MODEL:
+    - in_channels: 256
+      func_name: 'cross_entropy'
+      pool_type: 'avg'
+      loss_weight: 0.1
+      window_sizes: [3, 9]
+    - in_channels: 512
+      func_name: 'focal_loss'
+      focal_loss_gamma: 3
+      pool_type: 'avg'
+      loss_weight: 0.1
+      window_sizes: [3, 9, 15, 21, -1]
 DATASETS:
   TRAINS: ['sim10k']
   TARGETS: ['cityscapes_car_train']

@@ -8,7 +8,19 @@ MODEL:
     BOX_PREDICTOR: 'resnet101_predictor'
     POOL_TYPE: 'align'
 ADV:
-  IN_CHANNELS: 1024
+  LAYERS: [True, False, True]
+  DIS_MODEL:
+    - in_channels: 256
+      func_name: 'cross_entropy'
+      pool_type: 'avg'
+      loss_weight: 1.0
+      window_sizes: [3, 9, 15]
+    - in_channels: 1024
+      func_name: 'focal_loss'
+      focal_loss_gamma: 5
+      pool_type: 'avg'
+      loss_weight: 1.0
+      window_sizes: [3, 9, 15, 21, -1]
 DATASETS:
   TRAINS: ['watercolor_voc_2007_trainval', 'watercolor_voc_2012_trainval']
   TARGETS: ['watercolor_train']

@@ -76,6 +76,8 @@ _C.ADV.METHOD = 'netvlad'
 _C.ADV.GAMMA_FROM = 1e-2
 _C.ADV.GAMMA_TO = 1e-2
 
+_C.ADV.LAYERS = [False, False, True]
+_C.ADV.DIS_MODEL = [{'in_channels': 512}]
 _C.ADV.LOSS_FUNC = 'focal_loss'  # ['cross_entropy', 'focal_loss']
 _C.ADV.FOCAL_LOSS_GAMMA = 5
 _C.ADV.LOSS_WEIGHT = 1.0
