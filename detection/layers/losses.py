@@ -51,3 +51,8 @@ def softmax_focal_loss(inputs, targets, gamma=2, reduction='mean'):
     else:
         raise ValueError
     return loss
+
+
+def l2_loss(inputs, targets, reduction='mean'):
+    loss = F.mse_loss(inputs.sigmoid(), targets.to(inputs.dtype).expand_as(inputs), reduction=reduction)
+    return loss
