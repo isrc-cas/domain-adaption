@@ -11,10 +11,12 @@ ADV:
   LAYERS: [True, False, True]
   DIS_MODEL:
     - in_channels: 256
-      func_name: 'cross_entropy'
+      embedding_norm: False
+      embedding_dropout: False
+      func_name: 'l2'
       pool_type: 'avg'
       loss_weight: 1.0
-      window_sizes: [3, 9, 15]
+      window_sizes: [1, 3, 9, 15]
     - in_channels: 1024
       func_name: 'focal_loss'
       focal_loss_gamma: 5

@@ -15,7 +15,7 @@ def smooth_l1_loss(input, target, beta=1. / 9, size_average=True):
     return loss.sum()
 
 
-def sigmoid_focal_loss(inputs, targets, alpha, gamma, reduction="mean"):
+def sigmoid_focal_loss(inputs, targets, alpha=-1, gamma=2, reduction="mean"):
     p = torch.sigmoid(inputs)
     ce_loss = F.binary_cross_entropy_with_logits(
         inputs, targets, reduction="none"
