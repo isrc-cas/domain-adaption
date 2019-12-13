@@ -94,17 +94,11 @@ class Dis(nn.Module):
         )
 
         self.shared_semantic = nn.Sequential(
-            nn.Conv2d(in_channels + num_anchors, in_channels, kernel_size=embedding_kernel_size, stride=1, padding=padding, bias=bias),
-            NormModule(in_channels),
+            nn.Conv2d(in_channels + num_anchors, in_channels, kernel_size=embedding_kernel_size, stride=1, padding=padding),
             nn.ReLU(True),
-
-            nn.Conv2d(in_channels, 256, kernel_size=embedding_kernel_size, stride=1, padding=padding, bias=bias),
-            NormModule(256),
+            nn.Conv2d(in_channels, 256, kernel_size=embedding_kernel_size, stride=1, padding=padding),
             nn.ReLU(True),
-            DropoutModule(),
-
-            nn.Conv2d(256, 256, kernel_size=embedding_kernel_size, stride=1, padding=padding, bias=bias),
-            NormModule(256),
+            nn.Conv2d(256, 256, kernel_size=embedding_kernel_size, stride=1, padding=padding),
             nn.ReLU(True),
         )
 
@@ -114,8 +108,9 @@ class Dis(nn.Module):
         for i in range(self.num_windows):
             self.semantic_list += [
                 nn.Sequential(
-                    nn.Conv2d(256, 128, 1, bias=bias),
-                    NormModule(128),
+                    nn.Conv2d(256, 128, 1),
+                    nn.ReLU(True),
+                    nn.Conv2d(128, 128, 1),
                     nn.ReLU(True),
                     nn.Conv2d(128, 1, 1),
                 )
@@ -158,15 +153,11 @@ class Dis(nn.Module):
             _, _, h, w = x.shape
             semantic_map_per_level = F.interpolate(semantic_map, size=(h, w), mode='bilinear', align_corners=True)
             domain_logits = self.semantic_list[i](semantic_map_per_level)
-            domain_logits_list.append(domain_logits)
 
-            domain_probs = domain_logits.sigmoid()
-
-            domain_uncertainty = - domain_probs * torch.log(domain_probs)
-
-            w_spatial = 1 - domain_uncertainty
-            x = x + x * w_spatial
-            x = F.adaptive_avg_pool2d(x, output_size=1)
+            w_spatial = domain_logits.view(N, -1)
+            w_spatial = F.softmax(w_spatial, dim=1)
+            w_spatial = w_spatial.view(N, 1, h, w)
+            x = torch.sum(x * w_spatial, dim=(2, 3), keepdim=True)
             pyramid_features.append(x)
 
         fuse = sum(pyramid_features)  # [N, 256, 1, 1]
@@ -281,6 +272,7 @@ class FasterRCNN(nn.Module):
             raise ValueError("In training mode, targets should be passed")
         outputs = dict()
         loss_dict = dict()
+        adv_loss = dict()
 
         forward_func = getattr(self, 'forward_{}'.format(self.cfg.MODEL.BACKBONE.NAME))
 
@@ -301,19 +293,15 @@ class FasterRCNN(nn.Module):
                 loss_func = netD.loss_func
                 loss_weight = netD.loss_weight
                 num_windows = netD.num_windows
-                gamma = netD.focal_loss_gamma
 
-                w = 0.5
-                s_domain_loss = loss_func(s_domain_logits, torch.zeros(s_domain_logits.size(0), dtype=torch.long, device=device)) * w
-                t_domain_loss = loss_func(t_domain_logits, torch.ones(t_domain_logits.size(0), dtype=torch.long, device=device)) * w
+                s_domain_loss = loss_func(s_domain_logits, torch.zeros(s_domain_logits.size(0), dtype=torch.long, device=device))
+                t_domain_loss = loss_func(t_domain_logits, torch.ones(t_domain_logits.size(0), dtype=torch.long, device=device))
 
-                list_weights = (1.0 / num_windows) * 0.5
-
-                loss_dict.update({
+                adv_loss.update({
                     's_domain_loss%d' % i: s_domain_loss * loss_weight,
                     't_domain_loss%d' % i: t_domain_loss * loss_weight,
-                    's_domain_list_loss%d' % i: list_weights * sum(sigmoid_focal_loss(la, torch.zeros_like(la), gamma=gamma) for la in s_domain_logits_list) * loss_weight,
-                    't_domain_list_loss%d' % i: list_weights * sum(sigmoid_focal_loss(la, torch.ones_like(la), gamma=gamma) for la in t_domain_logits_list) * loss_weight,
+                    # 's_domain_list_loss%d' % i: list_weights * sum(sigmoid_focal_loss(la, torch.zeros_like(la), gamma=gamma) for la in s_domain_logits_list) * loss_weight,
+                    # 't_domain_list_loss%d' % i: list_weights * sum(sigmoid_focal_loss(la, torch.ones_like(la), gamma=gamma) for la in t_domain_logits_list) * loss_weight,
                 })
 
             # outputs['s_features'] = s_adaptation_feats
@@ -330,5 +318,6 @@ class FasterRCNN(nn.Module):
         if self.training:
             loss_dict.update(rpn_losses)
             loss_dict.update(box_losses)
+            loss_dict['adv_loss'] = adv_loss
             return loss_dict, outputs
         return dets

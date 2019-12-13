@@ -67,6 +67,7 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
 
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.0e}'))
+    metric_logger.add_meter('LAMBDA', utils.SmoothedValue(window_size=1, fmt='{value:.3f}'))
     header = 'Epoch: [{}]'.format(epoch)
 
     lr_schedulers = []
@@ -93,9 +94,14 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
         t_images = t_images.to(device)
 
         loss_dict, outputs = model(images, img_metas, targets, t_images, t_img_metas)
-        loss_dict_for_log = dict(loss_dict)
+        adv_loss = loss_dict.pop('adv_loss')
+        loss_dict_for_log = dict(**loss_dict, **adv_loss)
 
-        losses = sum(list(loss_dict.values()))
+        det_loss = sum(list(loss_dict.values()))
+        ada_loss = sum(list(adv_loss.values()))
+
+        LAMBDA = cosine_scheduler(cfg.ADV.LAMBDA_FROM, cfg.ADV.LAMBDA_TO, global_step)
+        losses = det_loss + ada_loss * LAMBDA
         optimizer.zero_grad()
         losses.backward()
         optimizer.step()
@@ -108,6 +114,7 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
 
         metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+        metric_logger.update(LAMBDA=LAMBDA)
 
         if global_step % print_freq == 0:
             if writer:
@@ -115,8 +122,9 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
                     writer.add_scalar('losses/{}'.format(k), v, global_step=global_step)
                 writer.add_scalar('losses/total_loss', losses_reduced, global_step=global_step)
                 writer.add_scalar('lr', optimizer.param_groups[0]['lr'], global_step=global_step)
+                writer.add_scalar('LAMBDA', LAMBDA, global_step=global_step)
 
-        if global_step % (1000 // max(1, (dist_utils.get_world_size() // 2))) == 0 and test_func is not None:
+        if global_step % (500 // max(1, (dist_utils.get_world_size() // 2))) == 0 and test_func is not None:
             updated = test_func()
             if updated:
                 save_func('best.pth', 'mAP: {:.4f}'.format(best_mAP))

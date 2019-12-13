@@ -9,13 +9,17 @@ MODEL:
     POOL_TYPE: 'align'
 ADV:
   LAYERS: [False, False, True]
+  LAMBDA_FROM: 1.0
+  LAMBDA_TO: 1.0
   DIS_MODEL:
     - in_channels: 1024
-      func_name: 'focal_loss'
-      focal_loss_gamma: 5
+      func_name: 'cross_entropy'
       pool_type: 'avg'
-      loss_weight: 1.0
-      window_sizes: [3, 9, 15, 21, -1]
+      loss_weight: 0.1
+      window_strides: [2, 2, 2, 2, 2, 2, 2]
+      window_sizes: [3, 9, 15, 21, 27, 33, 38]
+#      window_strides: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+#      window_sizes: [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 35, 38]
 DATASETS:
   TRAINS: ['voc_2007_trainval', 'voc_2012_trainval']
   TARGETS: ['voc_clipart_traintest']
