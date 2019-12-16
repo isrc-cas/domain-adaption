@@ -9,11 +9,11 @@ ADV:
   LAYERS: [False, False, True]
   DIS_MODEL:
     - in_channels: 512
-      func_name: 'focal_loss'
-      focal_loss_gamma: 3
+      func_name: 'cross_entropy'
       pool_type: 'avg'
-      loss_weight: 1.0
-      window_sizes: [3, 9, 15, 21, -1]
+      loss_weight: 0.01
+      window_strides: [2, 2, 2, 2, 2, 2, 2]
+      window_sizes: [3, 9, 15, 21, 27, 33, 37]
 DATASETS:
   TRAINS: ['cityscapes_car_train']
   TARGETS: ['kitti_train']
