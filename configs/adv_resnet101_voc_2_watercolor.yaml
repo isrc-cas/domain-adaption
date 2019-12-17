@@ -8,10 +8,19 @@ MODEL:
     BOX_PREDICTOR: 'resnet101_predictor'
     POOL_TYPE: 'align'
 ADV:
-  LAYERS: [False, False, True]
+  LAYERS: [True, False, True]
   LAMBDA_FROM: 1.0
   LAMBDA_TO: 0.1
   DIS_MODEL:
+    - in_channels: 256
+      embedding_kernel_size: 1
+      embedding_norm: True
+      embedding_dropout: True
+      func_name: 'cross_entropy'
+      pool_type: 'avg'
+      loss_weight: 0.01
+      window_strides: [2, 2, 2, 2, 2, 2, 2]
+      window_sizes: [3, 9, 15, 21, 27, 33, 38]
     - in_channels: 1024
       func_name: 'cross_entropy'
       pool_type: 'avg'
