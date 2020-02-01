@@ -1,13 +1,17 @@
 import os
 import time
 
+import numpy as np
 import torch
 import torch.distributed as dist
+from PIL import Image
 
 from detection import utils
 from detection.data.evaluations import coco_evaluation, voc_evaluation
 from detection.data.transforms import de_normalize
+from detection.utils import colormap
 from detection.utils.dist_utils import is_main_process, all_gather, get_world_size
+from detection.utils.visualizer import Visualizer
 
 
 def _accumulate_predictions_from_multiple_gpus(predictions_per_gpu):
@@ -32,6 +36,44 @@ def evaluation(model, data_loaders, device, types=('coco',), output_dir='./evalu
         result = do_evaluation(model, data_loader, device, types=types, output_dir=_output_dir, iteration=iteration, viz=viz)
         results[dataset.dataset_name] = result
     return results
+
+
+COLORMAP = colormap.colormap(rgb=True, maximum=1)
+
+
+def save_visualization(dataset, img_meta, result, output_dir, threshold=0.8, fmt='.pdf'):
+    save_dir = os.path.join(output_dir, 'visualizations')
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+    file_name = img_meta['img_info']['file_name']
+    img = Image.open(os.path.join(dataset.images_dir, file_name))
+    w, h = img.size
+    scale = 0.4
+    w, h = int(w * scale), int(h * scale)
+    img = img.resize((w, h))
+
+    vis = Visualizer(img, metadata=None)
+
+    boxes = np.array(result['boxes']) * scale
+    labels = np.array(result['labels'])
+    scores = np.array(result['scores'])
+    indices = scores > threshold
+    boxes = boxes[indices]
+    scores = scores[indices]
+    labels = labels[indices]
+
+    # colors = COLORMAP[(labels + 2) % len(COLORMAP)]
+
+    colors = [np.array([1.0, 0, 0])] * len(labels)
+
+    labels = ['{}:{:.0f}%'.format(dataset.CLASSES[label], score * 100) for label, score in zip(labels, scores)]
+    out = vis.overlay_instances(
+        boxes=boxes,
+        labels=labels,
+        assigned_colors=colors,
+        alpha=0.8,
+    )
+    out.save(os.path.join(save_dir, os.path.basename(file_name).replace('.', '_') + fmt))
 
 
 @torch.no_grad()
