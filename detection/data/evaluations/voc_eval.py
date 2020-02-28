@@ -19,7 +19,8 @@ def voc_evaluation(dataset, predictions, output_dir, iteration=None, use_07_metr
     gt_labels_list = []
     gt_difficults = []
     for image_id in predictions:
-        boxes, scores, labels = predictions[image_id]
+        det = predictions[image_id]
+        boxes, scores, labels = det['boxes'], det['scores'], det['labels']
         pred_boxes_list.append(np.array(boxes))
         pred_labels_list.append(np.array(labels))
         pred_scores_list.append(np.array(scores))

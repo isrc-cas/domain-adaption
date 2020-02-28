@@ -318,6 +318,7 @@ class FasterRCNN(nn.Module):
         if self.training:
             loss_dict.update(rpn_losses)
             loss_dict.update(box_losses)
-            loss_dict['adv_loss'] = adv_loss
+            if len(adv_loss) > 0:
+                loss_dict['adv_loss'] = adv_loss
             return loss_dict, outputs
         return dets

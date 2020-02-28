@@ -8,7 +8,19 @@ from torchvision.ops import boxes as box_ops
 
 from detection.layers import FrozenBatchNorm2d, smooth_l1_loss
 from detection.layers import cat
+from detection.modeling.roi_heads.mask_head import ConvUpSampleMaskHead, mask_rcnn_loss
 from detection.modeling.utils import BalancedPositiveNegativeSampler, BoxCoder, Matcher
+
+
+def select_foreground_proposals(proposals, labels):
+    fg_proposals = []
+    fg_select_masks = []
+    for i, (proposals_per_img, label_per_img) in enumerate(zip(proposals, labels)):
+        fg_mask = label_per_img > 0
+        fg_idxs = fg_mask.nonzero().squeeze(1)
+        fg_proposals.append(proposals_per_img[fg_idxs])
+        fg_select_masks.append(fg_mask)
+    return fg_proposals, fg_select_masks
 
 
 class VGG16BoxPredictor(nn.Module):
@@ -111,11 +123,14 @@ class BoxHead(nn.Module):
         spatial_scale        = cfg.MODEL.ROI_BOX_HEAD.POOL_SPATIAL_SCALE
         pool_size            = cfg.MODEL.ROI_BOX_HEAD.POOL_RESOLUTION
         pool_type            = cfg.MODEL.ROI_BOX_HEAD.POOL_TYPE
+        mask_on              = cfg.MODEL.MASK_ON
         # fmt:on
 
         self.score_thresh = score_thresh
         self.nms_thresh = nms_thresh
         self.detections_per_img = detections_per_img
+        self.spatial_scale = spatial_scale
+        self.mask_on = mask_on
 
         if pool_type == 'align':
             pooler = partial(ops.roi_align, output_size=(pool_size, pool_size), spatial_scale=spatial_scale, sampling_ratio=2)
@@ -130,10 +145,13 @@ class BoxHead(nn.Module):
         self.matcher = Matcher(0.5, 0.5, allow_low_quality_matches=False)
         self.fg_bg_sampler = BalancedPositiveNegativeSampler(batch_size, 0.25)
 
+        if mask_on:
+            self.mask_head = ConvUpSampleMaskHead(in_channels, num_classes=cfg.MODEL.ROI_BOX_HEAD.NUM_CLASSES)
+
     def forward(self, features, proposals, img_metas, targets=None):
         if self.training and targets is not None:
             with torch.no_grad():
-                proposals, labels, regression_targets = self.select_training_samples(proposals, targets)
+                proposals, labels, regression_targets, masks = self.select_training_samples(proposals, targets)
 
         is_target_domain = self.training and targets is None
 
@@ -150,11 +168,65 @@ class BoxHead(nn.Module):
                 'rcnn_cls_loss': classification_loss,
                 'rcnn_reg_loss': box_loss,
             }
+            if self.mask_on:
+                mask_loss = self.forward_mask(features, proposals, masks, labels)
+                loss.update(mask_loss)
             dets = []
         else:
             loss = {}
             dets = self.post_processor(class_logits, box_regression, proposals, img_metas)
+            if self.mask_on:
+                dets = self.forward_mask(features, dets)
         return dets, loss, proposals, box_features, roi_features
+
+    def forward_mask(self, features, proposals, masks=None, labels=None):
+        if self.training:
+            fg_proposals, fg_select_masks = select_foreground_proposals(proposals, labels)
+            gt_masks = []
+            fg_labels = []
+            for m, masks_per_img, label_per_img in zip(fg_select_masks, masks, labels):
+                gt_masks.append(masks_per_img[m])
+                fg_labels.append(label_per_img[m])
+
+            pooled_features = ops.roi_align(features, proposals,
+                                            output_size=(14, 14),
+                                            spatial_scale=self.spatial_scale,
+                                            sampling_ratio=2)
+            mask_features = pooled_features[cat(fg_select_masks, dim=0)]
+            mask_logits = self.mask_head(mask_features)
+            del pooled_features
+            mask_loss = mask_rcnn_loss(mask_logits, gt_masks, fg_proposals, fg_labels)
+            loss_dict = {'mask_loss': mask_loss}
+            return loss_dict
+        else:
+            detections = proposals
+            proposals = [det['boxes'] for det in detections]
+            pooled_features = ops.roi_align(features, proposals,
+                                            output_size=(14, 14),
+                                            spatial_scale=self.spatial_scale,
+                                            sampling_ratio=2)
+
+            mask_logits = self.mask_head(pooled_features)
+            detections = self.mask_inference(mask_logits, detections)
+            return detections
+
+    def mask_inference(self, pred_mask_logits, detections):
+        # Select masks corresponding to the predicted classes
+        num_boxes_per_image = [len(det['labels']) for det in detections]
+        num_masks = pred_mask_logits.shape[0]
+        assert sum(num_boxes_per_image) == num_masks
+
+        class_pred = cat([det['labels'] for det in detections])
+        indices = torch.arange(num_masks)
+        mask_probs_pred = pred_mask_logits[indices, class_pred][:, None].sigmoid()
+
+        # mask_probs_pred.shape: (B, 1, M, M)
+        mask_probs_pred = mask_probs_pred.split(num_boxes_per_image, dim=0)
+
+        for prob, det in zip(mask_probs_pred, detections):
+            det['masks'] = prob  # (N, 1, M, M)
+
+        return detections
 
     def post_processor(self, class_logits, box_regression, proposals, img_metas):
         num_classes = class_logits.shape[1]
@@ -210,13 +282,20 @@ class BoxHead(nn.Module):
             keep = keep[:self.detections_per_img]
             boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
 
-            results.append((boxes, scores, labels))
+            result = {
+                'boxes': boxes,
+                'scores': scores,
+                'labels': labels,
+            }
+
+            results.append(result)
 
         return results
 
     def select_training_samples(self, proposals, targets):
         labels = []
         regression_targets = []
+        masks = []
         for batch_id in range(len(targets)):
             target = targets[batch_id]
             proposals_per_image = proposals[batch_id]
@@ -228,6 +307,10 @@ class BoxHead(nn.Module):
 
             target_boxes = target['boxes'][matched_idxs_for_target]
             target_labels = target['labels'][matched_idxs_for_target]
+            if 'masks' in target:
+                target_masks = target['masks'][matched_idxs_for_target]
+                masks.append(target_masks)
+
             labels_per_image = target_labels.to(dtype=torch.int64)
 
             # Label background (below the low threshold)
@@ -255,5 +338,7 @@ class BoxHead(nn.Module):
             proposals[img_idx] = proposals[img_idx][img_sampled_inds]
             labels[img_idx] = labels[img_idx][img_sampled_inds]
             regression_targets[img_idx] = regression_targets[img_idx][img_sampled_inds]
+            if len(masks) > 0:
+                masks[img_idx] = masks[img_idx][img_sampled_inds]
 
-        return proposals, labels, regression_targets
+        return proposals, labels, regression_targets, masks

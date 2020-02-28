@@ -3,6 +3,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.MODEL = CN()
+_C.MODEL.MASK_ON = False
 
 # ---------------------------------------------------------------------------- #
 # Dataset options

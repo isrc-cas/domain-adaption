@@ -13,6 +13,7 @@ import torch
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from .colormap import random_color
+from ..structures import PolygonMasks
 
 logger = logging.getLogger(__name__)
 
@@ -584,6 +585,7 @@ class Visualizer:
             assigned_colors = [assigned_colors[idx] for idx in sorted_idxs]
             keypoints = keypoints[sorted_idxs] if keypoints is not None else None
 
+        assigned_colors = [random_color(rgb=True, maximum=1) for _ in range(num_instances)]
         for i in range(num_instances):
             color = assigned_colors[i]
             if boxes is not None:

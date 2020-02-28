@@ -5,10 +5,12 @@ import numpy as np
 import torch
 import torch.distributed as dist
 from PIL import Image
+import pycocotools.mask as mask_util
 
 from detection import utils
 from detection.data.evaluations import coco_evaluation, voc_evaluation
 from detection.data.transforms import de_normalize
+from detection.layers.mask_ops import paste_masks_in_image
 from detection.utils import colormap
 from detection.utils.dist_utils import is_main_process, all_gather, get_world_size
 from detection.utils.visualizer import Visualizer
@@ -48,19 +50,21 @@ def save_visualization(dataset, img_meta, result, output_dir, threshold=0.8, fmt
     file_name = img_meta['img_info']['file_name']
     img = Image.open(os.path.join(dataset.images_dir, file_name))
     w, h = img.size
-    scale = 0.4
-    w, h = int(w * scale), int(h * scale)
-    img = img.resize((w, h))
+    scale = 1.0
+    # w, h = int(w * scale), int(h * scale)
+    # img = img.resize((w, h))
 
     vis = Visualizer(img, metadata=None)
 
     boxes = np.array(result['boxes']) * scale
     labels = np.array(result['labels'])
     scores = np.array(result['scores'])
+    masks = result['masks']
     indices = scores > threshold
     boxes = boxes[indices]
     scores = scores[indices]
     labels = labels[indices]
+    masks = [m for m, b in zip(masks, indices) if b]
 
     # colors = COLORMAP[(labels + 2) % len(COLORMAP)]
 
@@ -70,6 +74,7 @@ def save_visualization(dataset, img_meta, result, output_dir, threshold=0.8, fmt
     out = vis.overlay_instances(
         boxes=boxes,
         labels=labels,
+        masks=masks,
         assigned_colors=colors,
         alpha=0.8,
     )
@@ -83,12 +88,15 @@ def do_evaluation(model, data_loader, device, types, output_dir, iteration=None,
     dataset = data_loader.dataset
     header = 'Testing {}:'.format(dataset.dataset_name)
     results_dict = {}
+    has_mask = False
     for images, img_metas, targets in metric_logger.log_every(data_loader, 10, header):
         assert len(targets) == 1
         images = images.to(device)
 
         model_time = time.time()
-        boxes, scores, labels = model(images, img_metas)[0]
+        det = model(images, img_metas)[0]
+        boxes, scores, labels = det['boxes'], det['scores'], det['labels']
+
         model_time = time.time() - model_time
 
         img_meta = img_metas[0]
@@ -121,13 +129,37 @@ def do_evaluation(model, data_loader, device, types, output_dir, iteration=None,
             plt.show()
 
         boxes /= scale_factor
+        result = {}
+
+        if 'masks' in det:
+            has_mask = True
+            (w, h) = img_meta['origin_img_shape']
+            masks = paste_masks_in_image(det['masks'], boxes, (h, w))
+            rles = []
+            for mask in masks.cpu().numpy():
+                mask = mask >= 0.5
+                mask = mask_util.encode(np.array(mask[0][:, :, None], order='F', dtype='uint8'))[0]
+                # "counts" is an array encoded by mask_util as a byte-stream. Python3's
+                # json writer which always produces strings cannot serialize a bytestream
+                # unless you decode it. Thankfully, utf-8 works out (which is also what
+                # the pycocotools/_mask.pyx does).
+                mask['counts'] = mask['counts'].decode('utf-8')
+                rles.append(mask)
+            result['masks'] = rles
+
         boxes = boxes.tolist()
         labels = labels.tolist()
         labels = [dataset.label2cat[label] for label in labels]
         scores = scores.tolist()
 
+        result['boxes'] = boxes
+        result['scores'] = scores
+        result['labels'] = labels
+
+        # save_visualization(dataset, img_meta, result, output_dir)
+
         results_dict.update({
-            img_info['id']: (boxes, scores, labels)
+            img_info['id']: result
         })
         metric_logger.update(model_time=model_time)
 
@@ -138,7 +170,7 @@ def do_evaluation(model, data_loader, device, types, output_dir, iteration=None,
     if not is_main_process():
         return {}
     results = {}
-    if 'coco' in types:
+    if has_mask:
         result = coco_evaluation(dataset, predictions, output_dir, iteration=iteration)
         results.update(result)
     if 'voc' in types:

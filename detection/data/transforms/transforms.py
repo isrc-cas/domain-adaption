@@ -5,23 +5,39 @@ import numpy as np
 import torch
 
 from detection.data.container import Container
+from detection.structures import PolygonMasks
 
 
 class random_flip(object):
     def __init__(self, flip_ratio=0.5):
         self.flip_ratio = flip_ratio
 
+    def flip_boxes(self, results):
+        if 'boxes' in results:
+            w, h = results['img_shape']
+            boxes = results['boxes']
+            flipped = boxes.copy()
+            flipped[..., 0] = w - boxes[..., 2] - 1
+            flipped[..., 2] = w - boxes[..., 0] - 1
+            results['boxes'] = flipped
+
+    def flip_masks(self, results):
+        if 'masks' in results:  # list[list[ndarray[double]]]
+            w, h = results['img_shape']
+            masks = results['masks']
+            for mask in masks:
+                for polygon in mask:
+                    # np.array([x0, y0, x1, y1, ..., xn, yn]) (n >= 3)
+                    polygon[0::2] = w - polygon[0::2] - 1
+            results['masks'] = masks
+
     def __call__(self, results):
         flip = True if np.random.rand() < self.flip_ratio else False
         results['flip'] = flip
         if results['flip']:
             results['img'] = np.flip(results['img'], axis=1)
-            w, _ = results['img_shape']
-            boxes = results['boxes']
-            flipped = boxes.copy()
-            flipped[..., 0::4] = w - boxes[..., 2::4] - 1
-            flipped[..., 2::4] = w - boxes[..., 0::4] - 1
-            results['boxes'] = flipped
+            self.flip_boxes(results)
+            self.flip_masks(results)
         return results
 
 
@@ -59,6 +75,17 @@ class resize(object):
         boxes[:, 1::2] = np.clip(boxes[:, 1::2], 0, h - 1)
         results['boxes'] = boxes
 
+    def resize_masks(self, results):
+        if 'masks' in results:
+            masks = results['masks']
+            for mask in masks:
+                for polygon in mask:
+                    scale_y = scale_x = results['scale_factor']
+                    # inplace modify
+                    polygon[0::2] *= scale_x
+                    polygon[1::2] *= scale_y
+            results['masks'] = masks
+
     def __call__(self, results):
         w, h = results['img_shape']
         new_w, new_h = self.get_size((w, h))
@@ -71,6 +98,7 @@ class resize(object):
         results['scale_factor'] = float(new_w) / w
 
         self.resize_boxes(results)
+        self.resize_masks(results)
 
         return results
 
@@ -147,6 +175,9 @@ class collect(object):
             'boxes': torch.from_numpy(results['boxes'].astype(np.float32)),
             'labels': torch.from_numpy(results['labels']),
         }
+        if 'masks' in results:
+            target['masks'] = PolygonMasks(results['masks'])
+
         img_meta = {
         }
         for key in self.meta_keys:

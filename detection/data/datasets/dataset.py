@@ -44,6 +44,9 @@ class ABSDataset(Dataset):
             'img_shape': (img.width, img.height),
             'img_info': img_info,
         }
+        if 'masks' in target:
+            results['masks'] = target['masks']
+
         results = self.transforms(results)
         return results
 
@@ -105,16 +108,19 @@ class COCODataset(ABSDataset):
 
         boxes = []
         labels = []
+        masks = []
         for obj in anns:
             x, y, w, h = obj["bbox"]
             box = [x, y, x + w - 1, y + h - 1]
             label = self.cat2label[obj["category_id"]]
             boxes.append(box)
             labels.append(label)
+            segm = [np.array(polygon, dtype=np.float64) for polygon in obj['segmentation']]
+            masks.append(segm)
         boxes = np.array(boxes).reshape((-1, 4))
         labels = np.array(labels)
 
-        return {'img_info': img_info, 'boxes': boxes, 'labels': labels}
+        return {'img_info': img_info, 'boxes': boxes, 'labels': labels, 'masks': masks}
 
 
 class VOCDataset(ABSDataset):

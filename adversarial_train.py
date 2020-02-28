@@ -211,6 +211,7 @@ def main(cfg, args):
                     for k, v in metric.items():
                         metrics_writers[dataset_name].add_scalar('metrics/' + k, v, global_step=global_step)
                         if k == 'mAP' and v > best_mAP:
+                        # if k == 'AP50' and v > best_mAP:
                             best_mAP = v
                             updated = True
             model.train()
