@@ -124,7 +124,7 @@ def train_one_epoch(model, optimizer, train_loader, target_loader, device, epoch
                 writer.add_scalar('lr', optimizer.param_groups[0]['lr'], global_step=global_step)
                 writer.add_scalar('LAMBDA', LAMBDA, global_step=global_step)
 
-        if global_step % (500 // max(1, (dist_utils.get_world_size() // 2))) == 0 and test_func is not None:
+        if global_step % (2000 // max(1, (dist_utils.get_world_size() // 2))) == 0 and test_func is not None:
             updated = test_func()
             if updated:
                 save_func('best.pth', 'mAP: {:.4f}'.format(best_mAP))
@@ -210,8 +210,8 @@ def main(cfg, args):
                 for dataset_name, metric in metrics.items():
                     for k, v in metric.items():
                         metrics_writers[dataset_name].add_scalar('metrics/' + k, v, global_step=global_step)
-                        if k == 'mAP' and v > best_mAP:
-                        # if k == 'AP50' and v > best_mAP:
+                        # if k == 'mAP' and v > best_mAP:
+                        if k == 'AP' and v > best_mAP:
                             best_mAP = v
                             updated = True
             model.train()

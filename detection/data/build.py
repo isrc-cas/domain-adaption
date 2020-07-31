@@ -121,6 +121,16 @@ DATASETS = {
         'root': cityscapes_images_dir,
     },
 
+    'car_city_val': {
+        'ann_file': '/data7/lufficc/cityscapes/annotations/instances_car_only_filtered_gtFine_val.json',
+        'root': cityscapes_images_dir + '/val',
+    },
+
+    '6cats_city_val': {
+        'ann_file': '/data7/lufficc/cityscapes/cityscapes_6cats_coco_val.json',
+        'root': cityscapes_images_dir,
+    },
+
     'foggy_cityscapes_car_train': {
         'ann_file': '/data7/lufficc/cityscapes/foggy_cityscapes_coco_train.json',
         'root': foggy_cityscapes_images_dir,
@@ -135,6 +145,16 @@ DATASETS = {
     'kitti_train': {
         'root': '/data7/lufficc/cross_domain_detection/kitti/VOC2012/',
         'split': 'train',
+    },
+
+    'vkitti': {
+        'ann_file': '/data8/lufficc/datasets/VirtualKITTI-InstanceSeg-COCO.json',
+        'root': '/data8/lufficc/datasets/VKITTI/vkitti_1.3.1_rgb',
+    },
+
+    'SYNTHIA_mask': {
+        'ann_file': '/data8/lufficc/datasets/RAND_CITYSCAPES-COCO.json',
+        'root': '/data8/lufficc/datasets/SYNTHIA/RAND_CITYSCAPES/RGB',
     },
 }
 
@@ -153,6 +173,8 @@ def build_datasets(names, transforms, is_train=True):
             dataset = CityscapeCarDataset(**cfg)
         elif 'sim10k' in name:
             dataset = Sim10kDataset(**cfg)
+        elif 'vkitti' in name:
+            dataset = VKITTI(**cfg)
         elif 'kitti' in name:
             dataset = KITTIDataset(**cfg)
         elif 'cityscapes' in name:
@@ -161,6 +183,12 @@ def build_datasets(names, transforms, is_train=True):
             dataset = MSCOCODataset(**cfg)
         elif 'voc' in name:
             dataset = CustomVocDataset(**cfg)
+        elif 'car_city_val' in name:
+            dataset = CityscapeDataset(**cfg)
+        elif '6cats_city_val' in name:
+            dataset = CityscapeDataset(**cfg)
+        elif 'SYNTHIA_mask' in name:
+            dataset = SYNTHIAMask(**cfg)
         else:
             raise NotImplementedError
         datasets.append(dataset)

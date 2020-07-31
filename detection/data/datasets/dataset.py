@@ -20,6 +20,20 @@ def has_valid_annotation(anno):
     # if all boxes have close to zero area, there is no annotation
     if _has_only_empty_bbox(anno):
         return False
+
+        # TODO: remove
+    flags = []
+    for obj in anno:
+        x, y, w, h = obj['bbox']
+        flag = w >= 5 and h >= 5
+
+        segm = [0 for polygon in obj['segmentation'] if len(polygon) >= 6]
+        flag = flag and len(segm) > 0
+
+        flags.append(flag)
+    if not any(flags):
+        return False
+
     return True
 
 
@@ -104,19 +118,28 @@ class COCODataset(ABSDataset):
         ann_ids = coco.getAnnIds(imgIds=img_id)
         anns = coco.loadAnns(ann_ids)
 
-        anns = [obj for obj in anns if obj["iscrowd"] == 0]
+        if len(anns) > 0 and 'iscrowd' in anns[0]:
+            anns = [obj for obj in anns if obj["iscrowd"] == 0]
 
         boxes = []
         labels = []
         masks = []
         for obj in anns:
             x, y, w, h = obj["bbox"]
+
+            # TODO: remove
+            if not (w >= 5 and h >= 5):
+                continue
+            segm = [0 for polygon in obj['segmentation'] if len(polygon) >= 6]
+            if len(segm) == 0:
+                continue
+
             box = [x, y, x + w - 1, y + h - 1]
             label = self.cat2label[obj["category_id"]]
             boxes.append(box)
             labels.append(label)
-            segm = [np.array(polygon, dtype=np.float64) for polygon in obj['segmentation']]
-            masks.append(segm)
+            # segm = [np.array(polygon, dtype=np.float64) for polygon in obj['segmentation'] if len(polygon) >= 6]
+            # masks.append(segm)
         boxes = np.array(boxes).reshape((-1, 4))
         labels = np.array(labels)
 

@@ -19,3 +19,17 @@ class MSCOCODataset(COCODataset):
 
     def __init__(self, train, **kwargs):
         super().__init__(remove_empty=train, **kwargs)
+
+
+class VKITTI(COCODataset):
+    CLASSES = ('__background__', 'car')
+
+    def __init__(self, train, **kwargs):
+        super().__init__(remove_empty=train, **kwargs)
+
+
+class SYNTHIAMask(COCODataset):
+    CLASSES = ('__background__', 'Car', 'Bus', 'Motorcycle', 'Bicycle', 'Person', 'Rider')
+
+    def __init__(self, train, **kwargs):
+        super().__init__(remove_empty=train, **kwargs)

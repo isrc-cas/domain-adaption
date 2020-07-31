@@ -46,6 +46,9 @@ class Dis(nn.Module):
         if pool_type == 'avg':
             channel_multiply = 1
             pool_func = F.avg_pool2d
+        elif pool_type == 'max':
+            channel_multiply = 1
+            pool_func = F.max_pool2d
         elif pool_type == 'style':
             channel_multiply = 2
             pool_func = style_pool2d
